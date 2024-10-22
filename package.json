@@ -4,15 +4,32 @@
     "description": "The Rolling Scopes Battleship application.",
     "type": "module",
     "scripts": {
-        "start": "node ./index.js",
-        "start:dev": "nodemon ./index.js",
-        "test": "echo \"Error: no test specified\" && exit 1"
+        "build:back": "tsc --build",
+        "start:front": "node ./index.js",
+        "start:dev": "nodemon src/index.ts",
+        "start:back": "npm run build:back && node build/index.js",
+        "start:prod": "npm run start:front && npm run start:back",
+        "lint": "eslint . --ext ts,tsx",
+        "format": "prettier --check .",
+        "format:fix": "prettier --write ."
     },
     "author": "NewAlexey",
     "keywords": [],
     "license": "ISC",
     "devDependencies": {
-        "nodemon": "^2.0.16"
+        "@tsconfig/node22": "^22.0.0",
+        "@typescript-eslint/eslint-plugin": "^8.11.0",
+        "@typescript-eslint/parser": "^8.11.0",
+        "dotenv": "^16.4.5",
+        "eslint": "^8.57.1",
+        "eslint-config-prettier": "^9.1.0",
+        "eslint-import-resolver-typescript": "^3.6.3",
+        "eslint-plugin-import": "^2.31.0",
+        "eslint-plugin-prettier": "^5.2.1",
+        "nodemon": "^2.0.16",
+        "prettier": "^3.3.3",
+        "ts-node": "^10.9.2",
+        "typescript": "^5.6.3"
     },
     "dependencies": {
         "ws": "^8.8.0"
