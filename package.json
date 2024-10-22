@@ -1,0 +1,20 @@
+{
+    "name": "rss-node-js-battleships",
+    "version": "1.0.0",
+    "description": "The Rolling Scopes Battleship application.",
+    "type": "module",
+    "scripts": {
+        "start": "node ./index.js",
+        "start:dev": "nodemon ./index.js",
+        "test": "echo \"Error: no test specified\" && exit 1"
+    },
+    "author": "NewAlexey",
+    "keywords": [],
+    "license": "ISC",
+    "devDependencies": {
+        "nodemon": "^2.0.16"
+    },
+    "dependencies": {
+        "ws": "^8.8.0"
+    }
+}
