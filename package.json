@@ -2,7 +2,6 @@
     "name": "rss-node-js-battleships",
     "version": "1.0.0",
     "description": "The Rolling Scopes Battleship application.",
-    "type": "module",
     "scripts": {
         "build:back": "tsc --build",
         "start:front": "node ./index.js",
@@ -18,20 +17,21 @@
     "license": "ISC",
     "devDependencies": {
         "@tsconfig/node22": "^22.0.0",
-        "@typescript-eslint/eslint-plugin": "^8.11.0",
-        "@typescript-eslint/parser": "^8.11.0",
+        "@types/ws": "^8.5.12",
+        "@typescript-eslint/eslint-plugin": "^7.18.0",
+        "@typescript-eslint/parser": "^7.18.0",
         "dotenv": "^16.4.5",
         "eslint": "^8.57.1",
         "eslint-config-prettier": "^9.1.0",
         "eslint-import-resolver-typescript": "^3.6.3",
         "eslint-plugin-import": "^2.31.0",
         "eslint-plugin-prettier": "^5.2.1",
-        "nodemon": "^2.0.16",
+        "nodemon": "^3.1.7",
         "prettier": "^3.3.3",
         "ts-node": "^10.9.2",
         "typescript": "^5.6.3"
     },
     "dependencies": {
-        "ws": "^8.8.0"
+        "ws": "^8.18.0"
     }
 }

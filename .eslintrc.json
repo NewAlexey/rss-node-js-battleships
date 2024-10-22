@@ -28,6 +28,7 @@
         "project": ["./tsconfig.json"]
     },
     "rules": {
+        "@typescript-eslint/no-explicit-any": "warn",
         "import/order": ["error", { "newlines-between": "always" }],
         "prettier/prettier": [
             "error",
