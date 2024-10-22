@@ -1,5 +1,6 @@
 import { BaseMessageModel } from "../../models/BaseMessageModel";
 import { ControllerModel, EventHandlerMapType } from "../ControllerModel";
+import { EventTypeModel } from "../../models/EventTypeModel";
 
 import { RegistrationService } from "./registration.service";
 
@@ -7,7 +8,7 @@ class RegistrationController implements ControllerModel {
     private readonly registrationService = new RegistrationService();
 
     private readonly eventHandlerMap: EventHandlerMapType = {
-        reg: (data: BaseMessageModel<any>) =>
+        [EventTypeModel.REGISTRATION]: (data: BaseMessageModel<any>) =>
             this.loginOrCreateUserHandler(data),
     };
 
