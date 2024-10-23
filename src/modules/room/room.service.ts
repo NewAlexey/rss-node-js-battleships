@@ -18,7 +18,11 @@ export class RoomService {
         return this.userDb.get(userId);
     }
 
-    public addUserToRoom(socketId: number, roomId: number): void {
+    public getAllUsers(): UserModel[] {
+        return this.userDb.getAll();
+    }
+
+    public addUserToRoom(socketId: number, roomId: number): RoomModel {
         const room = this.roomDb.get(roomId);
 
         if (!room) {
@@ -26,6 +30,8 @@ export class RoomService {
         }
 
         room.socketIdList.push(socketId);
+
+        return room;
     }
 
     public getRoomList(): RoomModel[] {

@@ -1,10 +1,10 @@
 import { ControllerModel, EventHandlerMapType } from "../ControllerModel";
 import { EventEmitter } from "../../utils/EventEmitter";
-import { EventTypeModel, InnerEventModel } from "../../models/EventTypeModel";
+import { EventTypeModel, ServerEventModel } from "../../models/EventTypeModel";
 import { BaseMessageModel } from "../../models/BaseMessageModel";
 import { FrontRoomModel, RoomModel } from "../../models/RoomModel";
 import { emitDataHandler } from "../../utils/emitDataHandler";
-import { FrontUserModel } from "../../models/UserModel";
+import { UserModel } from "../../models/UserModel";
 
 import { RoomService } from "./room.service";
 
@@ -40,8 +40,14 @@ export class RoomController implements ControllerModel {
         data: BaseMessageModel<AddUserToRoomType>,
         socketId: number,
     ): void {
-        this.roomService.addUserToRoom(socketId, data.data.indexRoom);
-        //TODO emit game_create
+        const gameRoom = this.roomService.addUserToRoom(
+            socketId,
+            data.data.indexRoom,
+        );
+        this.eventEmitter.emit(
+            ServerEventModel.GAME_CREATE,
+            gameRoom.socketIdList,
+        );
     }
 
     private createRoomHandler(socketId: number) {
@@ -52,38 +58,56 @@ export class RoomController implements ControllerModel {
         });
 
         this.eventEmitter.emit(socketId, data);
+        this.eventEmitter.emit(ServerEventModel.ROOM_LIST_UPDATE);
     }
 
     private updateRoomHandler() {
-        this.eventEmitter.subscribe(
-            InnerEventModel.USER_LOGIN,
-            (socketId: number) => {
-                const roomList: RoomModel[] = this.roomService.getRoomList();
+        this.eventEmitter.subscribe(ServerEventModel.ROOM_LIST_UPDATE, () => {
+            const roomList: RoomModel[] = this.roomService.getRoomList();
+            const userList = this.roomService.getAllUsers();
 
+            const userMap = userList.reduce<Record<number, UserModel>>(
+                (acc, user) => {
+                    acc[user.id] = user;
+
+                    return acc;
+                },
+                {},
+            );
+
+            userList.forEach((user) => {
                 const data = emitDataHandler(
                     EventTypeModel.ROOM_UPDATE,
-                    roomList.map<FrontRoomModel>((room) => ({
-                        roomId: room.id,
-                        roomUsers: room.socketIdList.map<FrontUserModel>(
-                            (socketId) => {
-                                const user = this.roomService.getUser(socketId);
+                    roomList.reduce<FrontRoomModel[]>((acc, room) => {
+                        if (room.socketIdList.length === 2) {
+                            return acc;
+                        }
 
-                                if (!user) {
-                                    throw new Error("Unknown user.");
-                                }
+                        if (room.socketIdList.includes(user.id)) {
+                            return acc;
+                        }
 
-                                return {
-                                    name: user.name,
-                                    id: user.id,
-                                };
-                            },
-                        ),
-                    })),
+                        const roomUser = userMap[room.socketIdList[0]];
+
+                        if (!roomUser) {
+                            return acc;
+                        }
+
+                        const frontRoom: FrontRoomModel = {
+                            roomId: room.id,
+                            roomUsers: [
+                                { name: roomUser.name, id: roomUser.id },
+                            ],
+                        };
+
+                        acc.push(frontRoom);
+
+                        return acc;
+                    }, []),
                 );
-
-                this.eventEmitter.emit(socketId, data);
-            },
-        );
+                this.eventEmitter.emit(user.id, data);
+            });
+        });
     }
 }
 

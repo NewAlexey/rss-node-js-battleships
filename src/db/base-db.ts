@@ -1,3 +1,5 @@
+import { generateId } from "../utils/generateId";
+
 export class BaseDataBase<D extends { id: number }> {
     private readonly db: Map<number | string, D> = new Map();
 
@@ -10,7 +12,7 @@ export class BaseDataBase<D extends { id: number }> {
     }
 
     public add(dto: Omit<D, "id">, id?: string | number): D {
-        const entity = { ...dto, id: id || new Date().getTime() } as D;
+        const entity = { ...dto, id: id || generateId() } as D;
 
         this.save(entity);
 

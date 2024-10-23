@@ -2,6 +2,7 @@ import WebSocket, { Server as ServerType, WebSocketServer } from "ws";
 
 import { BaseMessageModel } from "./models/BaseMessageModel";
 import { EventEmitter } from "./utils/EventEmitter";
+import { generateId } from "./utils/generateId";
 
 export class WSServer {
     public readonly server: ServerType;
@@ -32,9 +33,9 @@ export class WSServer {
         this.server.on("connection", (socket: WebSocket) => {
             console.log("New socket connected!");
 
-            const socketId: number = new Date().getTime();
+            const socketId: number = generateId();
             const socketCallback = (data: any) => {
-                console.log("emitter data!!!", data);
+                console.log("WsServer emitted data - ", data);
                 socket.send(data);
             };
 
@@ -49,6 +50,8 @@ export class WSServer {
                     if (message.data) {
                         message.data = JSON.parse(message.data);
                     }
+
+                    console.log("Frontend message - ", message);
 
                     handler(message, socketId);
                 } catch (error) {

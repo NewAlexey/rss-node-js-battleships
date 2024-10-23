@@ -1,6 +1,6 @@
 import { BaseMessageModel } from "../../models/BaseMessageModel";
 import { ControllerModel, EventHandlerMapType } from "../ControllerModel";
-import { EventTypeModel, InnerEventModel } from "../../models/EventTypeModel";
+import { EventTypeModel, ServerEventModel } from "../../models/EventTypeModel";
 import { EventEmitter } from "../../utils/EventEmitter";
 import { emitDataHandler } from "../../utils/emitDataHandler";
 
@@ -48,7 +48,7 @@ export class RegistrationController implements ControllerModel {
             });
 
             this.eventEmitter.emit(socketId, data);
-            this.eventEmitter.emit(InnerEventModel.USER_LOGIN, socketId);
+            this.eventEmitter.emit(ServerEventModel.ROOM_LIST_UPDATE, socketId);
         } else {
             const isPasswordMatches =
                 this.registrationService.isPasswordMatches(
