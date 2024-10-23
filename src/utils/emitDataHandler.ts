@@ -1,5 +1,5 @@
-import { EventTypeModel } from "../models/EventTypeModel";
+import { FrontEventTypeModel } from "../models/FrontEventTypeModel";
 
-export function emitDataHandler(type: EventTypeModel, data: any) {
+export function emitDataHandler(type: FrontEventTypeModel, data: any) {
     return JSON.stringify({ type, id: 0, data: JSON.stringify(data) });
 }

@@ -1,6 +1,9 @@
 import { ControllerModel, EventHandlerMapType } from "../ControllerModel";
 import { EventEmitter } from "../../utils/EventEmitter";
-import { EventTypeModel, ServerEventModel } from "../../models/EventTypeModel";
+import {
+    FrontEventTypeModel,
+    ServerEventModel,
+} from "../../models/FrontEventTypeModel";
 import { BaseMessageModel } from "../../models/BaseMessageModel";
 import { FrontRoomModel, RoomModel } from "../../models/RoomModel";
 import { emitDataHandler } from "../../utils/emitDataHandler";
@@ -13,11 +16,11 @@ export class RoomController implements ControllerModel {
     private readonly eventEmitter: EventEmitter;
 
     private readonly eventHandlerMap: EventHandlerMapType = {
-        [EventTypeModel.ROOM_CREATE]: (
+        [FrontEventTypeModel.ROOM_CREATE]: (
             data: BaseMessageModel<any>,
             socketId: number,
         ) => this.createRoomHandler(socketId),
-        [EventTypeModel.ROOM_ADD_USER]: (
+        [FrontEventTypeModel.ROOM_ADD_USER]: (
             data: BaseMessageModel<AddUserToRoomType>,
             socketId: number,
         ) => this.addUserToRoomHandler(data, socketId),
@@ -53,7 +56,7 @@ export class RoomController implements ControllerModel {
     private createRoomHandler(socketId: number) {
         const createdRoom = this.roomService.createRoom(socketId);
 
-        const data = emitDataHandler(EventTypeModel.ROOM_CREATE, {
+        const data = emitDataHandler(FrontEventTypeModel.ROOM_CREATE, {
             indexRoom: createdRoom.id,
         });
 
@@ -77,7 +80,7 @@ export class RoomController implements ControllerModel {
 
             userList.forEach((user) => {
                 const data = emitDataHandler(
-                    EventTypeModel.ROOM_UPDATE,
+                    FrontEventTypeModel.ROOM_UPDATE,
                     roomList.reduce<FrontRoomModel[]>((acc, room) => {
                         if (room.socketIdList.length === 2) {
                             return acc;

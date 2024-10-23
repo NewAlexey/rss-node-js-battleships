@@ -19,7 +19,7 @@ export class BaseDataBase<D extends { id: number }> {
         return entity;
     }
 
-    private save(entity: D): void {
+    public save(entity: D): void {
         this.db.set(entity.id, entity);
     }
 }

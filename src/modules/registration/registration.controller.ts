@@ -1,6 +1,9 @@
 import { BaseMessageModel } from "../../models/BaseMessageModel";
 import { ControllerModel, EventHandlerMapType } from "../ControllerModel";
-import { EventTypeModel, ServerEventModel } from "../../models/EventTypeModel";
+import {
+    FrontEventTypeModel,
+    ServerEventModel,
+} from "../../models/FrontEventTypeModel";
 import { EventEmitter } from "../../utils/EventEmitter";
 import { emitDataHandler } from "../../utils/emitDataHandler";
 
@@ -11,6 +14,13 @@ export class RegistrationController implements ControllerModel {
         new RegistrationService();
     private readonly eventEmitter: EventEmitter;
 
+    private readonly eventHandlerMap: EventHandlerMapType = {
+        [FrontEventTypeModel.REGISTRATION]: (
+            data: BaseMessageModel<any>,
+            socketId: number,
+        ) => this.loginOrCreateUserHandler(data, socketId),
+    };
+
     constructor(eventEmitter: EventEmitter) {
         this.eventEmitter = eventEmitter;
     }
@@ -18,13 +28,6 @@ export class RegistrationController implements ControllerModel {
     public getEventHandlerMap(): EventHandlerMapType {
         return this.eventHandlerMap;
     }
-
-    private readonly eventHandlerMap: EventHandlerMapType = {
-        [EventTypeModel.REGISTRATION]: (
-            data: BaseMessageModel<any>,
-            socketId: number,
-        ) => this.loginOrCreateUserHandler(data, socketId),
-    };
 
     private loginOrCreateUserHandler(
         message: BaseMessageModel<LoginOrCreateDataType>,
@@ -40,7 +43,7 @@ export class RegistrationController implements ControllerModel {
                 socketId,
             );
 
-            const data = emitDataHandler(EventTypeModel.REGISTRATION, {
+            const data = emitDataHandler(FrontEventTypeModel.REGISTRATION, {
                 name: createdUser.name,
                 index: createdUser.id,
                 error: false,
