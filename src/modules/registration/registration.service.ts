@@ -9,8 +9,11 @@ export class RegistrationService {
         return Boolean(this.db.get(username));
     }
 
-    public registerUser(props: { name: string; password: string }): UserModel {
-        return this.db.add(props);
+    public registerUser(
+        props: { name: string; password: string },
+        socketId: number,
+    ): UserModel {
+        return this.db.add(props, socketId);
     }
 
     public isPasswordMatches(name: string, password: string): boolean {

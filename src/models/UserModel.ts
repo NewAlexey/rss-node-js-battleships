@@ -3,3 +3,5 @@ export type UserModel = {
     name: string;
     password: string;
 };
+
+export type FrontUserModel = Omit<UserModel, "password">;

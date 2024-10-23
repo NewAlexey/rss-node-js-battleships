@@ -1,16 +1,16 @@
-export class BaseDataBase<D extends { name: string; id: number }> {
-    private readonly db: Map<string, D> = new Map();
+export class BaseDataBase<D extends { id: number }> {
+    private readonly db: Map<number | string, D> = new Map();
 
-    public get(name: string): D | undefined {
-        return this.db.get(name);
+    public get(id: string | number): D | undefined {
+        return this.db.get(id);
     }
 
     public getAll(): D[] {
         return [...this.db.values()];
     }
 
-    public add(dto: Omit<D, "id">): D {
-        const entity = { ...dto, id: new Date().getTime() } as D;
+    public add(dto: Omit<D, "id">, id?: string | number): D {
+        const entity = { ...dto, id: id || new Date().getTime() } as D;
 
         this.save(entity);
 
@@ -18,6 +18,6 @@ export class BaseDataBase<D extends { name: string; id: number }> {
     }
 
     private save(entity: D): void {
-        this.db.set(entity.name, entity);
+        this.db.set(entity.id, entity);
     }
 }

@@ -1,22 +1,35 @@
 import { BaseMessageModel } from "../../models/BaseMessageModel";
 import { ControllerModel, EventHandlerMapType } from "../ControllerModel";
-import { EventTypeModel } from "../../models/EventTypeModel";
+import { EventTypeModel, InnerEventModel } from "../../models/EventTypeModel";
+import { EventEmitter } from "../../utils/EventEmitter";
+import { emitDataHandler } from "../../utils/emitDataHandler";
 
 import { RegistrationService } from "./registration.service";
 
-class RegistrationController implements ControllerModel {
-    private readonly registrationService = new RegistrationService();
+export class RegistrationController implements ControllerModel {
+    private readonly registrationService: RegistrationService =
+        new RegistrationService();
+    private readonly eventEmitter: EventEmitter;
+
+    constructor(eventEmitter: EventEmitter) {
+        this.eventEmitter = eventEmitter;
+    }
+
+    public getEventHandlerMap(): EventHandlerMapType {
+        return this.eventHandlerMap;
+    }
 
     private readonly eventHandlerMap: EventHandlerMapType = {
-        [EventTypeModel.REGISTRATION]: (data: BaseMessageModel<any>) =>
-            this.loginOrCreateUserHandler(data),
+        [EventTypeModel.REGISTRATION]: (
+            data: BaseMessageModel<any>,
+            socketId: number,
+        ) => this.loginOrCreateUserHandler(data, socketId),
     };
 
     private loginOrCreateUserHandler(
         message: BaseMessageModel<LoginOrCreateDataType>,
+        socketId: number,
     ): void {
-        console.log("henlo from registrationService", message);
-
         const isUserExist = this.registrationService.isUserExist(
             message.data.name,
         );
@@ -24,10 +37,18 @@ class RegistrationController implements ControllerModel {
         if (!isUserExist) {
             const createdUser = this.registrationService.registerUser(
                 message.data,
+                socketId,
             );
 
-            console.log("createdUser", createdUser);
-            //emit user created!
+            const data = emitDataHandler(EventTypeModel.REGISTRATION, {
+                name: createdUser.name,
+                index: createdUser.id,
+                error: false,
+                errorText: "",
+            });
+
+            this.eventEmitter.emit(socketId, data);
+            this.eventEmitter.emit(InnerEventModel.USER_LOGIN, socketId);
         } else {
             const isPasswordMatches =
                 this.registrationService.isPasswordMatches(
@@ -36,21 +57,13 @@ class RegistrationController implements ControllerModel {
                 );
 
             if (!isPasswordMatches) {
-                //emit wrong user data!
+                //TODO emit wrong user data!
             } else {
-                //emit login user!
+                //TODO emit wrong user data!
             }
         }
     }
-
-    public getEventHandlerMap(): EventHandlerMapType {
-        return this.eventHandlerMap;
-    }
 }
-
-const RegistrationControllerInstance = new RegistrationController();
-
-export { RegistrationControllerInstance };
 
 type LoginOrCreateDataType = {
     name: string;

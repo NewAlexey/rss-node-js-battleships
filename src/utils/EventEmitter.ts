@@ -1,7 +1,8 @@
 export class EventEmitter {
-    private readonly events: Map<string, Array<CallableFunction>> = new Map();
+    private readonly events: Map<string | number, Array<CallableFunction>> =
+        new Map();
 
-    public emit(eventName: string, args?: unknown): void {
+    public emit(eventName: string | number, args?: unknown): void {
         const event = this.events.get(eventName);
 
         if (!event) {
@@ -11,7 +12,10 @@ export class EventEmitter {
         event.forEach((callback: CallableFunction) => callback(args));
     }
 
-    public subscribe(eventName: string, callback: CallableFunction): void {
+    public subscribe(
+        eventName: string | number,
+        callback: CallableFunction,
+    ): void {
         if (!this.events.has(eventName)) {
             this.events.set(eventName, []);
         }
@@ -19,7 +23,7 @@ export class EventEmitter {
         this.events.get(eventName)!.push(callback);
     }
 
-    public clearSubscriptionsByName(eventName: string): void {
+    public clearSubscriptionsByName(eventName: string | number): void {
         const callbackList = this.events.get(eventName);
 
         if (!callbackList) {
@@ -29,7 +33,10 @@ export class EventEmitter {
         this.events.set(eventName, []);
     }
 
-    public unsubscribe(eventName: string, callback: CallableFunction): void {
+    public unsubscribe(
+        eventName: string | number,
+        callback: CallableFunction,
+    ): void {
         const callbackList = this.events.get(eventName);
 
         if (!callbackList) {
