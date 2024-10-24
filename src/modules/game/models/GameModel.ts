@@ -1,8 +1,8 @@
-import { PlayerModel } from "./PlayerModel";
+import { PlayerDataModel } from "./PlayerDataModel";
 
 export type GameModel = {
     id: number;
     movePlayerIdTurn: string;
-    firstPlayer: PlayerModel;
-    secondPlayer: PlayerModel;
+    firstPlayer: PlayerDataModel;
+    secondPlayer: PlayerDataModel;
 };

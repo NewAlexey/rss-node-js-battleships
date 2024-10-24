@@ -6,13 +6,16 @@ import { ControllerModel, EventHandlerMapType } from "../ControllerModel";
 import { BaseMessageModel } from "../../models/BaseMessageModel";
 import { ServerEventModel } from "../../models/ServerEventModel";
 
-import { GameService } from "./game.service";
+import { AttackHandlerReturnDataType, GameService } from "./game.service";
 import { GameModel } from "./models/GameModel";
 import { ShipModel } from "./models/ShipModel";
+import { GameActionService } from "./game-action.service";
 
 export class GameController implements ControllerModel {
     private readonly gameService: GameService = new GameService();
     private readonly eventEmitter: EventEmitter;
+
+    private readonly actionService: GameActionService;
 
     private readonly eventHandlerMap: EventHandlerMapType = {
         [FrontEventTypeModel.SHIPS_ADD]: (
@@ -26,6 +29,10 @@ export class GameController implements ControllerModel {
 
     constructor(eventEmitter: EventEmitter) {
         this.eventEmitter = eventEmitter;
+        this.actionService = new GameActionService(
+            eventEmitter,
+            this.gameService,
+        );
         this.subscribeOnEvent();
     }
 
@@ -38,52 +45,81 @@ export class GameController implements ControllerModel {
         this.startGameHandler();
         this.playerTurnHandler();
     }
-
     private playerAttackHandler(
         { gameId, y, x, indexPlayer }: PlayerAttackEventDataType,
         socketId: number,
     ) {
-        const game = this.gameService.getGame(gameId);
+        try {
+            const game = this.gameService.getGame(gameId);
 
-        if (!game) {
-            throw new Error("Something wrong with game.");
-        }
-
-        const attackResult = this.gameService.attackHandler(
-            game,
-            indexPlayer,
-            x,
-            y,
-        );
-
-        const opponentPlayer = this.gameService.getOpponentPlayer(
-            game,
-            indexPlayer,
-        );
-
-        switch (attackResult.status) {
-            case "finish": {
-                const winnerPlayer =
-                    game.firstPlayer.userId === socketId
-                        ? game.firstPlayer
-                        : game.secondPlayer;
-
-                this.eventEmitter.emit(
-                    socketId,
-                    emitDataHandler<GameFinishEmitDataType>(
-                        FrontEventTypeModel.GAME_FINISH,
-                        { winPlayer: winnerPlayer.playerId },
-                    ),
-                );
-                this.eventEmitter.emit(
-                    opponentPlayer.userId,
-                    emitDataHandler<GameFinishEmitDataType>(
-                        FrontEventTypeModel.GAME_FINISH,
-                        { winPlayer: winnerPlayer.playerId },
-                    ),
-                );
-                this.gameService.removeGame(gameId);
+            if (!game) {
+                throw new Error("Something wrong with game.");
             }
+
+            const attackResult: AttackHandlerReturnDataType =
+                this.gameService.attackHandler(
+                    game,
+                    socketId,
+                    indexPlayer,
+                    x,
+                    y,
+                );
+
+            const opponentPlayer = this.gameService.getOpponentPlayerByPlayerId(
+                game,
+                indexPlayer,
+            );
+
+            switch (attackResult.status) {
+                case "finish": {
+                    this.actionService.finishActionHandler({
+                        game,
+                        socketId,
+                        opponentPlayer,
+                    });
+
+                    break;
+                }
+
+                case "shot": {
+                    this.actionService.shotActionHandler({
+                        x,
+                        y,
+                        game,
+                        socketId,
+                        opponentPlayer,
+                    });
+
+                    break;
+                }
+
+                case "miss": {
+                    this.actionService.missActionHandler({
+                        x,
+                        y,
+                        game,
+                        socketId,
+                        opponentPlayer,
+                    });
+
+                    break;
+                }
+
+                case "killed": {
+                    this.actionService.killedActionHandler({
+                        x,
+                        y,
+                        game,
+                        socketId,
+                        opponentPlayer,
+                        positionList: attackResult.positionList,
+                    });
+
+                    break;
+                }
+            }
+        } catch (error) {
+            console.error(error);
         }
     }
 
@@ -106,30 +142,32 @@ export class GameController implements ControllerModel {
         }
     }
 
-    private playerTurnHandler() {
+    private playerTurnHandler(): void {
         this.eventEmitter.subscribe(
             ServerEventModel.PLAYER_TURN,
-            (gameId: number, playerId?: string) => {
-                console.log("turn handler!!");
-                console.log("gameId~~", gameId);
-                console.log("playerId~~", playerId);
+            (gameId: number) => {
+                const game: GameModel | undefined =
+                    this.gameService.getGame(gameId);
 
-                const currentPlayerMove = this.gameService.getPlayer(
-                    gameId,
-                    playerId,
-                );
+                if (!game) {
+                    throw new Error("Something wrong with game");
+                }
+
+                const { nextMovePlayer, waitMovePlayer } =
+                    this.gameService.getNextMovePlayers(game);
 
                 const data = emitDataHandler<PlayerTurnEmitDataType>(
                     FrontEventTypeModel.PLAYER_TURN,
-                    { currentPlayer: currentPlayerMove.playerId },
+                    { currentPlayer: nextMovePlayer.playerId },
                 );
 
-                this.eventEmitter.emit(currentPlayerMove.userId, data);
+                this.eventEmitter.emit(nextMovePlayer.userId, data);
+                this.eventEmitter.emit(waitMovePlayer.userId, data);
             },
         );
     }
 
-    private startGameHandler() {
+    private startGameHandler(): void {
         this.eventEmitter.subscribe(
             ServerEventModel.GAME_START,
             (gameId: number) => {

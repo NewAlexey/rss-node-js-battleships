@@ -1,6 +1,6 @@
 import { ShipModel } from "./ShipModel";
 
-export type PlayerModel = {
+export type PlayerDataModel = {
     isPlayerReady: boolean;
     playerId: string;
     userId: number;
@@ -9,6 +9,7 @@ export type PlayerModel = {
 };
 
 export type GameFieldType = {
+    shootPositionSet: Set<string>;
     field: FieldType;
     livesCount: number;
 };

@@ -6,8 +6,9 @@ import { ShipModel } from "./models/ShipModel";
 import {
     EmptyGameFieldType,
     FieldType,
-    PlayerModel,
-} from "./models/PlayerModel";
+    GameFieldType,
+    PlayerDataModel,
+} from "./models/PlayerDataModel";
 
 export class GameService {
     private readonly gameDb: BaseDataBase<GameModel> = GameDb;
@@ -24,8 +25,29 @@ export class GameService {
         this.gameDb.remove(gameId);
     }
 
-    public getOpponentPlayer(game: GameModel, playerId: string): PlayerModel {
-        const opponentPlayer: PlayerModel =
+    public getCurrentPlayerByUserId(
+        game: GameModel,
+        userId: number,
+    ): PlayerDataModel {
+        return game.firstPlayer.userId === userId
+            ? game.firstPlayer
+            : game.secondPlayer;
+    }
+
+    public getCurrentPlayerByPlayerId(
+        game: GameModel,
+        playerId: string,
+    ): PlayerDataModel {
+        return game.firstPlayer.playerId === playerId
+            ? game.firstPlayer
+            : game.secondPlayer;
+    }
+
+    public getOpponentPlayerByPlayerId(
+        game: GameModel,
+        playerId: string,
+    ): PlayerDataModel {
+        const opponentPlayer: PlayerDataModel =
             game.secondPlayer.playerId === playerId
                 ? game.firstPlayer
                 : game.secondPlayer;
@@ -37,16 +59,40 @@ export class GameService {
         return opponentPlayer;
     }
 
+    private validatePlayerAction(
+        game: GameModel,
+        socketId: number,
+        x: number,
+        y: number,
+    ): void {
+        //TODO this errors not catching... why??
+        const currentPlayer = this.getCurrentPlayerByUserId(game, socketId);
+
+        if (currentPlayer.playerId !== game.movePlayerIdTurn) {
+            throw new Error("Invalid player move turn.");
+        }
+
+        const isPlayerAlreadyShootThisPosition: boolean | undefined =
+            currentPlayer.gameField?.shootPositionSet.has(
+                convertCoordinates(x, y),
+            );
+
+        if (isPlayerAlreadyShootThisPosition) {
+            throw new Error("Invalid player shoot coordinates.");
+        }
+    }
+
     public attackHandler(
         game: GameModel,
+        socketId: number,
         playerId: string,
         x: number,
         y: number,
     ): AttackHandlerReturnDataType {
-        const opponentPlayer: PlayerModel = this.getOpponentPlayer(
-            game,
-            playerId,
-        );
+        this.validatePlayerAction(game, socketId, x, y);
+
+        const opponentPlayer: PlayerDataModel =
+            this.getOpponentPlayerByPlayerId(game, playerId);
 
         const { gameField } = opponentPlayer;
 
@@ -54,15 +100,13 @@ export class GameService {
             throw new Error("Something wrong with opponent game field.");
         }
 
-        const ship = gameField.field[y][x];
+        const ship = this.playerShoot(gameField, x, y);
 
         if (!ship) {
+            this.changePlayerMoveTurn(game, opponentPlayer.playerId);
+
             return {
                 status: "miss",
-                position: {
-                    x,
-                    y,
-                },
             };
         }
 
@@ -84,28 +128,27 @@ export class GameService {
 
         return {
             status: "shot",
-            position: { x, y },
         };
     }
 
-    public getPlayer(gameId: number, playerId?: string): PlayerModel {
-        const game = this.gameDb.get(gameId);
+    public getNextMovePlayers(game: GameModel): {
+        nextMovePlayer: PlayerDataModel;
+        waitMovePlayer: PlayerDataModel;
+    } {
+        const currentMovePlayerId = game.movePlayerIdTurn;
 
-        if (!game) {
-            throw new Error("Something wrong with game.");
-        }
+        const currentPlayer = this.getCurrentPlayerByPlayerId(
+            game,
+            currentMovePlayerId,
+        );
 
-        if (playerId) {
-            return game.firstPlayer.playerId === playerId
-                ? game.firstPlayer
-                : game.secondPlayer;
-        }
-
-        const { movePlayerIdTurn } = game;
-
-        return game.firstPlayer.playerId === movePlayerIdTurn
-            ? game.firstPlayer
-            : game.secondPlayer;
+        return {
+            nextMovePlayer: currentPlayer,
+            waitMovePlayer:
+                game.movePlayerIdTurn === game.firstPlayer.playerId
+                    ? game.firstPlayer
+                    : game.secondPlayer,
+        };
     }
 
     public addShipsToUser(
@@ -116,7 +159,7 @@ export class GameService {
         const game = this.gameDb.get(gameId);
 
         if (!game) {
-            throw new Error("Problem with game.");
+            throw new Error("Something wrong with game.");
         }
 
         const firstPlayerData = game.firstPlayer;
@@ -125,7 +168,7 @@ export class GameService {
         let updatedGame: GameModel;
 
         if (playerId === firstPlayerData.playerId) {
-            const filledPlayerShips: PlayerModel = this.setPlayerShipList(
+            const filledPlayerShips: PlayerDataModel = this.setPlayerShipList(
                 firstPlayerData,
                 shipList,
             );
@@ -134,7 +177,7 @@ export class GameService {
                 firstPlayer: filledPlayerShips,
             };
         } else if (playerId === secondPlayerData.playerId) {
-            const filledPlayerShips: PlayerModel = this.setPlayerShipList(
+            const filledPlayerShips: PlayerDataModel = this.setPlayerShipList(
                 secondPlayerData,
                 shipList,
             );
@@ -164,14 +207,36 @@ export class GameService {
         };
     }
 
+    private playerShoot(
+        gameField: GameFieldType,
+        x: number,
+        y: number,
+    ): ShipModel | null {
+        this.savePlayerShootPosition(gameField.shootPositionSet, x, y);
+
+        return gameField.field[y][x];
+    }
+
+    private savePlayerShootPosition(
+        playerPositionSet: Set<string>,
+        x: number,
+        y: number,
+    ): void {
+        playerPositionSet.add(convertCoordinates(x, y));
+    }
+
+    private changePlayerMoveTurn(game: GameModel, playerId: string): void {
+        game.movePlayerIdTurn = playerId;
+    }
+
     private setPlayerShipList(
-        playerData: PlayerModel,
+        playerData: PlayerDataModel,
         shipList: ShipModel[],
-    ): PlayerModel {
+    ): PlayerDataModel {
         return { ...playerData, isPlayerReady: true, shipList };
     }
 
-    private createPlayerGameField(player: PlayerModel): PlayerModel {
+    private createPlayerGameField(player: PlayerDataModel): PlayerDataModel {
         const gameField: FieldType = generateMatrix(10);
 
         let livesCount = 0;
@@ -196,11 +261,16 @@ export class GameService {
 
         player.gameField = {
             livesCount,
+            shootPositionSet: new Set(),
             field: gameField,
         };
 
         return player;
     }
+}
+
+function convertCoordinates(x: number, y: number): string {
+    return `${x}${y}`;
 }
 
 function generateMatrix(size: number): EmptyGameFieldType {
@@ -215,18 +285,10 @@ function generateMatrix(size: number): EmptyGameFieldType {
 
 type MissDataType = {
     status: "miss";
-    position: {
-        x: number;
-        y: number;
-    };
 };
 
 type ShotDataType = {
     status: "shot";
-    position: {
-        x: number;
-        y: number;
-    };
 };
 
 type KillDataType = {
@@ -241,7 +303,7 @@ type FinishDataType = {
     status: "finish";
 };
 
-type AttackHandlerReturnDataType =
+export type AttackHandlerReturnDataType =
     | MissDataType
     | ShotDataType
     | KillDataType

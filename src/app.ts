@@ -39,8 +39,8 @@ export class App {
         const serviceHandler = this.eventTypeMap.get(data.type);
 
         if (!serviceHandler) {
-            console.log("data~~", data);
             console.error("Bad event type");
+            console.log("data~~", data);
 
             return;
         }
