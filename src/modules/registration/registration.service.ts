@@ -1,6 +1,7 @@
 import { BaseDataBase } from "../../db/base-db";
-import { UserModel } from "../../models/UserModel";
 import { UserDb } from "../../db/user.db";
+
+import { UserModel } from "./models/UserModel";
 
 export class RegistrationService {
     private readonly db: BaseDataBase<UserModel> = UserDb;

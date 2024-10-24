@@ -1,4 +1,4 @@
-import { UserModel } from "../models/UserModel";
+import { UserModel } from "../modules/registration/models/UserModel";
 
 import { BaseDataBase } from "./base-db";
 

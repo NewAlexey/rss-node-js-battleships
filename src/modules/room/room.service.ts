@@ -1,8 +1,9 @@
 import { BaseDataBase } from "../../db/base-db";
-import { RoomModel } from "../../models/RoomModel";
 import { RoomDb } from "../../db/room.db";
-import { UserModel } from "../../models/UserModel";
 import { UserDb } from "../../db/user.db";
+import { UserModel } from "../registration/models/UserModel";
+
+import { RoomModel } from "./models/RoomModel";
 
 export class RoomService {
     private readonly roomDb: BaseDataBase<RoomModel> = RoomDb;

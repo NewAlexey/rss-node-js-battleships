@@ -1,11 +1,9 @@
 import { BaseMessageModel } from "../../models/BaseMessageModel";
 import { ControllerModel, EventHandlerMapType } from "../ControllerModel";
-import {
-    FrontEventTypeModel,
-    ServerEventModel,
-} from "../../models/FrontEventTypeModel";
+import { FrontEventTypeModel } from "../../models/FrontEventTypeModel";
 import { EventEmitter } from "../../utils/EventEmitter";
 import { emitDataHandler } from "../../utils/emitDataHandler";
+import { ServerEventModel } from "../../models/ServerEventModel";
 
 import { RegistrationService } from "./registration.service";
 
@@ -43,12 +41,15 @@ export class RegistrationController implements ControllerModel {
                 socketId,
             );
 
-            const data = emitDataHandler(FrontEventTypeModel.REGISTRATION, {
-                name: createdUser.name,
-                index: createdUser.id,
-                error: false,
-                errorText: "",
-            });
+            const data = emitDataHandler<LoginEmitDataType>(
+                FrontEventTypeModel.REGISTRATION,
+                {
+                    name: createdUser.name,
+                    index: createdUser.id,
+                    error: false,
+                    errorText: "",
+                },
+            );
 
             this.eventEmitter.emit(socketId, data);
             this.eventEmitter.emit(ServerEventModel.ROOM_LIST_UPDATE, socketId);
@@ -71,4 +72,11 @@ export class RegistrationController implements ControllerModel {
 type LoginOrCreateDataType = {
     name: string;
     password: string;
+};
+
+type LoginEmitDataType = {
+    name: string;
+    index: number;
+    error: boolean;
+    errorText: string;
 };

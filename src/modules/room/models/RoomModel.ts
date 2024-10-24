@@ -1,4 +1,4 @@
-import { FrontUserModel } from "./UserModel";
+import { FrontUserModel } from "../../registration/models/UserModel";
 
 export type RoomModel = {
     id: number;

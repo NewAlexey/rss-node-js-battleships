@@ -1,4 +1,4 @@
-import { RoomModel } from "../models/RoomModel";
+import { RoomModel } from "../modules/room/models/RoomModel";
 
 import { BaseDataBase } from "./base-db";
 

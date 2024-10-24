@@ -1,4 +1,4 @@
-import { GameModel } from "../models/GameModel";
+import { GameModel } from "../modules/game/models/GameModel";
 
 import { BaseDataBase } from "./base-db";
 

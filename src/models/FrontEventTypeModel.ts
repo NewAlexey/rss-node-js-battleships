@@ -6,10 +6,7 @@ export enum FrontEventTypeModel {
     GAME_CREATE = "create_game",
     SHIPS_ADD = "add_ships",
     GAME_START = "start_game",
-}
-
-export enum ServerEventModel {
-    ROOM_LIST_UPDATE = "room_list_update",
-    GAME_CREATE = "game_create",
-    GAME_START = "start_game",
+    GAME_FINISH = "finish",
+    PLAYER_TURN = "turn",
+    PLAYER_ATTACK = "attack",
 }

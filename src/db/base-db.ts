@@ -22,4 +22,8 @@ export class BaseDataBase<D extends { id: number }> {
     public save(entity: D): void {
         this.db.set(entity.id, entity);
     }
+
+    public remove(entityId: number | string): void {
+        this.db.delete(entityId);
+    }
 }

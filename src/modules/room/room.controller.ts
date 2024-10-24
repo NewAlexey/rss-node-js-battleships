@@ -1,15 +1,13 @@
 import { ControllerModel, EventHandlerMapType } from "../ControllerModel";
 import { EventEmitter } from "../../utils/EventEmitter";
-import {
-    FrontEventTypeModel,
-    ServerEventModel,
-} from "../../models/FrontEventTypeModel";
+import { FrontEventTypeModel } from "../../models/FrontEventTypeModel";
 import { BaseMessageModel } from "../../models/BaseMessageModel";
-import { FrontRoomModel, RoomModel } from "../../models/RoomModel";
 import { emitDataHandler } from "../../utils/emitDataHandler";
-import { UserModel } from "../../models/UserModel";
+import { ServerEventModel } from "../../models/ServerEventModel";
+import { UserModel } from "../registration/models/UserModel";
 
 import { RoomService } from "./room.service";
+import { FrontRoomModel, RoomModel } from "./models/RoomModel";
 
 export class RoomController implements ControllerModel {
     private readonly roomService: RoomService = new RoomService();
@@ -56,9 +54,12 @@ export class RoomController implements ControllerModel {
     private createRoomHandler(socketId: number) {
         const createdRoom = this.roomService.createRoom(socketId);
 
-        const data = emitDataHandler(FrontEventTypeModel.ROOM_CREATE, {
-            indexRoom: createdRoom.id,
-        });
+        const data = emitDataHandler<AddUserToRoomType>(
+            FrontEventTypeModel.ROOM_CREATE,
+            {
+                indexRoom: createdRoom.id,
+            },
+        );
 
         this.eventEmitter.emit(socketId, data);
         this.eventEmitter.emit(ServerEventModel.ROOM_LIST_UPDATE);
@@ -79,7 +80,7 @@ export class RoomController implements ControllerModel {
             );
 
             userList.forEach((user) => {
-                const data = emitDataHandler(
+                const data = emitDataHandler<FrontRoomModel[]>(
                     FrontEventTypeModel.ROOM_UPDATE,
                     roomList.reduce<FrontRoomModel[]>((acc, room) => {
                         if (room.socketIdList.length === 2) {
@@ -108,6 +109,7 @@ export class RoomController implements ControllerModel {
                         return acc;
                     }, []),
                 );
+
                 this.eventEmitter.emit(user.id, data);
             });
         });
