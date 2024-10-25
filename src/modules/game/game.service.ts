@@ -2,6 +2,7 @@ import { BaseDataBase } from "../../db/base-db";
 import { GameDb } from "../../db/game.db";
 import { RoomModel } from "../room/models/RoomModel";
 import { RoomDb } from "../../db/room.db";
+import { getRandomNumber } from "../../utils/getRandomNumber";
 
 import { GameModel } from "./models/GameModel";
 import { ShipModel } from "./models/ShipModel";
@@ -30,6 +31,56 @@ export class GameService {
 
     public removeGame(gameId: number): void {
         this.gameDb.remove(gameId);
+    }
+
+    public generatePlayerRandomAttackPosition(
+        gameId: number,
+        indexPlayer: string,
+    ): { x: number; y: number } {
+        const game = this.getGame(gameId);
+
+        if (!game) {
+            throw new Error("Something wrong with game");
+        }
+
+        const currentPlayer = this.getCurrentPlayerByPlayerId(
+            game,
+            indexPlayer,
+        );
+
+        const coordinates = {
+            x: getRandomNumber(0, 9),
+            y: getRandomNumber(0, 9),
+        };
+        let isCoordsUnique = false;
+
+        while (!isCoordsUnique) {
+            const isPlayerAlreadyShootThisPosition: boolean =
+                this.isPlayerAlreadyShootPosition(
+                    coordinates.x,
+                    coordinates.y,
+                    currentPlayer.gameField,
+                );
+
+            if (!isPlayerAlreadyShootThisPosition) {
+                isCoordsUnique = true;
+            } else {
+                coordinates.x = getRandomNumber(0, 9);
+                coordinates.y = getRandomNumber(0, 9);
+            }
+        }
+
+        return { x: coordinates.x, y: coordinates.y };
+    }
+
+    private isPlayerAlreadyShootPosition(
+        x: number,
+        y: number,
+        gameField: GameFieldType | null,
+    ): boolean {
+        return Boolean(
+            gameField?.shootPositionSet.has(convertCoordinates(x, y)),
+        );
     }
 
     public getCurrentPlayerByUserId(
@@ -78,12 +129,7 @@ export class GameService {
             return true;
         }
 
-        const isPlayerAlreadyShootThisPosition: boolean | undefined =
-            currentPlayer.gameField?.shootPositionSet.has(
-                convertCoordinates(x, y),
-            );
-
-        return !!isPlayerAlreadyShootThisPosition;
+        return this.isPlayerAlreadyShootPosition(x, y, currentPlayer.gameField);
     }
 
     public attackHandler(

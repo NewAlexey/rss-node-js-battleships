@@ -25,6 +25,10 @@ export class GameController implements ControllerModel {
             data: BaseMessageModel<PlayerAttackEventDataType>,
             socketId: number,
         ) => this.playerAttackHandler(data.data, socketId),
+        [FrontEventTypeModel.PLAYER_RANDOM_ATTACK]: (
+            data: BaseMessageModel<PlayerRandomAttackEventDataType>,
+            socketId: number,
+        ) => this.playerRandomAttackHandler(data.data, socketId),
     };
 
     constructor(eventEmitter: EventEmitter) {
@@ -34,6 +38,18 @@ export class GameController implements ControllerModel {
             this.gameService,
         );
         this.subscribeOnEvent();
+    }
+
+    private playerRandomAttackHandler(
+        { gameId, indexPlayer }: PlayerRandomAttackEventDataType,
+        socketId: number,
+    ): void {
+        const { x, y } = this.gameService.generatePlayerRandomAttackPosition(
+            gameId,
+            indexPlayer,
+        );
+
+        this.playerAttackHandler({ gameId, x, indexPlayer, y }, socketId);
     }
 
     public getEventHandlerMap(): EventHandlerMapType {
@@ -283,6 +299,11 @@ export type PlayerAttackEventDataType = {
     gameId: number;
     indexPlayer: string;
 };
+
+export type PlayerRandomAttackEventDataType = Pick<
+    PlayerAttackEventDataType,
+    "indexPlayer" | "gameId"
+>;
 
 export type PlayerAttackEmitDataType = {
     position: {

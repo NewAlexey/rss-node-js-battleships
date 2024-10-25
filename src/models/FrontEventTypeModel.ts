@@ -9,6 +9,7 @@ export enum FrontEventTypeModel {
     GAME_FINISH = "finish",
     PLAYER_TURN = "turn",
     PLAYER_ATTACK = "attack",
+    PLAYER_RANDOM_ATTACK = "randomAttack",
 }
 
-//TODO create update WINNERS event and randomAttackEvent;
+//TODO create update WINNERS event;
