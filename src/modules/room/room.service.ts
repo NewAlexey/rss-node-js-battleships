@@ -1,7 +1,7 @@
 import { BaseDataBase } from "../../db/base-db";
 import { RoomDb } from "../../db/room.db";
 import { UserDb } from "../../db/user.db";
-import { UserModel } from "../registration/models/UserModel";
+import { UserModel } from "../user/models/UserModel";
 import { emitDataHandler } from "../../utils/emitDataHandler";
 import { FrontEventTypeModel } from "../../models/FrontEventTypeModel";
 

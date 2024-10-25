@@ -2,6 +2,7 @@ import { emitDataHandler } from "../../utils/emitDataHandler";
 import { FrontEventTypeModel } from "../../models/FrontEventTypeModel";
 import { ServerEventModel } from "../../models/ServerEventModel";
 import { EventEmitter } from "../../utils/EventEmitter";
+import { WinnersService } from "../winners/winners.service";
 
 import { PlayerDataModel } from "./models/PlayerDataModel";
 import { GameModel } from "./models/GameModel";
@@ -14,10 +15,16 @@ import { GameService } from "./game.service";
 export class GameActionService {
     private readonly eventEmitter: EventEmitter;
     private readonly gameService: GameService;
+    private readonly winnerService: WinnersService;
 
-    constructor(eventEmitter: EventEmitter, gameService: GameService) {
+    constructor(
+        eventEmitter: EventEmitter,
+        gameService: GameService,
+        winnerService: WinnersService,
+    ) {
         this.eventEmitter = eventEmitter;
         this.gameService = gameService;
+        this.winnerService = winnerService;
     }
 
     public finishActionHandler(props: FinishActionPropsType): void {
@@ -27,6 +34,8 @@ export class GameActionService {
             game,
             socketId,
         );
+
+        this.winnerService.updateWinnersCount(winnerPlayer.userId);
 
         this.eventEmitter.emit(
             socketId,
@@ -42,6 +51,8 @@ export class GameActionService {
                 { winPlayer: winnerPlayer.playerId },
             ),
         );
+
+        this.eventEmitter.emit(ServerEventModel.WINNERS_UPDATE);
 
         this.gameService.removeRoom(game.firstPlayer.userId);
         this.gameService.removeRoom(game.secondPlayer.userId);

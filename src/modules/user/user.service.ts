@@ -3,18 +3,22 @@ import { UserDb } from "../../db/user.db";
 
 import { UserModel } from "./models/UserModel";
 
-export class RegistrationService {
+export class UserService {
     private readonly db: BaseDataBase<UserModel> = UserDb;
 
     public isUserExist(username: string): boolean {
         return Boolean(this.db.get(username));
     }
 
+    public getAll(): UserModel[] {
+        return this.db.getAll();
+    }
+
     public registerUser(
         props: { name: string; password: string },
         socketId: number,
     ): UserModel {
-        return this.db.add(props, socketId);
+        return this.db.add({ ...props, winsCount: 0 }, socketId);
     }
 
     public isPasswordMatches(name: string, password: string): boolean {

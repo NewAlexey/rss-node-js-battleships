@@ -5,6 +5,7 @@ import { emitDataHandler } from "../../utils/emitDataHandler";
 import { ControllerModel, EventHandlerMapType } from "../ControllerModel";
 import { BaseMessageModel } from "../../models/BaseMessageModel";
 import { ServerEventModel } from "../../models/ServerEventModel";
+import { WinnersService } from "../winners/winners.service";
 
 import { AttackHandlerReturnDataType, GameService } from "./game.service";
 import { GameModel } from "./models/GameModel";
@@ -13,6 +14,7 @@ import { GameActionService } from "./game-action.service";
 
 export class GameController implements ControllerModel {
     private readonly gameService: GameService = new GameService();
+    private readonly winnerService: WinnersService = new WinnersService();
     private readonly eventEmitter: EventEmitter;
 
     private readonly actionService: GameActionService;
@@ -36,8 +38,19 @@ export class GameController implements ControllerModel {
         this.actionService = new GameActionService(
             eventEmitter,
             this.gameService,
+            this.winnerService,
         );
         this.subscribeOnEvent();
+    }
+
+    public getEventHandlerMap(): EventHandlerMapType {
+        return this.eventHandlerMap;
+    }
+
+    private subscribeOnEvent() {
+        this.createGameHandler();
+        this.startGameHandler();
+        this.playerTurnHandler();
     }
 
     private playerRandomAttackHandler(
@@ -52,15 +65,6 @@ export class GameController implements ControllerModel {
         this.playerAttackHandler({ gameId, x, indexPlayer, y }, socketId);
     }
 
-    public getEventHandlerMap(): EventHandlerMapType {
-        return this.eventHandlerMap;
-    }
-
-    private subscribeOnEvent() {
-        this.createGameHandler();
-        this.startGameHandler();
-        this.playerTurnHandler();
-    }
     private playerAttackHandler(
         { gameId, y, x, indexPlayer }: PlayerAttackEventDataType,
         socketId: number,

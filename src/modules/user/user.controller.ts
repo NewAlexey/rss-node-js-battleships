@@ -5,11 +5,10 @@ import { EventEmitter } from "../../utils/EventEmitter";
 import { emitDataHandler } from "../../utils/emitDataHandler";
 import { ServerEventModel } from "../../models/ServerEventModel";
 
-import { RegistrationService } from "./registration.service";
+import { UserService } from "./user.service";
 
-export class RegistrationController implements ControllerModel {
-    private readonly registrationService: RegistrationService =
-        new RegistrationService();
+export class UserController implements ControllerModel {
+    private readonly registrationService: UserService = new UserService();
     private readonly eventEmitter: EventEmitter;
 
     private readonly eventHandlerMap: EventHandlerMapType = {
@@ -21,10 +20,34 @@ export class RegistrationController implements ControllerModel {
 
     constructor(eventEmitter: EventEmitter) {
         this.eventEmitter = eventEmitter;
+        this.subscribeOnEvent();
     }
 
     public getEventHandlerMap(): EventHandlerMapType {
         return this.eventHandlerMap;
+    }
+
+    private subscribeOnEvent() {
+        this.updateWinnerHandler();
+    }
+
+    private updateWinnerHandler(): void {
+        this.eventEmitter.subscribe(ServerEventModel.WINNERS_UPDATE, () => {
+            const userList = this.registrationService.getAll();
+
+            const winnersDataType = userList.map<WinnersUpdateEmitDataType>(
+                (user) => ({ wins: user.winsCount, name: user.name }),
+            );
+
+            userList.forEach((user) => {
+                const data = emitDataHandler<WinnersUpdateEmitDataType[]>(
+                    FrontEventTypeModel.WINNERS_UPDATE,
+                    winnersDataType,
+                );
+
+                this.eventEmitter.emit(user.id, data);
+            });
+        });
     }
 
     private loginOrCreateUserHandler(
@@ -53,6 +76,7 @@ export class RegistrationController implements ControllerModel {
 
             this.eventEmitter.emit(socketId, data);
             this.eventEmitter.emit(ServerEventModel.ROOM_LIST_UPDATE);
+            this.eventEmitter.emit(ServerEventModel.WINNERS_UPDATE);
         } else {
             const isPasswordMatches =
                 this.registrationService.isPasswordMatches(
@@ -79,4 +103,9 @@ type LoginEmitDataType = {
     index: number;
     error: boolean;
     errorText: string;
+};
+
+type WinnersUpdateEmitDataType = {
+    name: string;
+    wins: number;
 };

@@ -4,7 +4,7 @@ import { FrontEventTypeModel } from "../../models/FrontEventTypeModel";
 import { BaseMessageModel } from "../../models/BaseMessageModel";
 import { emitDataHandler } from "../../utils/emitDataHandler";
 import { ServerEventModel } from "../../models/ServerEventModel";
-import { UserModel } from "../registration/models/UserModel";
+import { UserModel } from "../user/models/UserModel";
 
 import { RoomService } from "./room.service";
 import { FrontRoomModel, RoomModel } from "./models/RoomModel";
