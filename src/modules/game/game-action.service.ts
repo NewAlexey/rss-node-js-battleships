@@ -42,8 +42,12 @@ export class GameActionService {
                 { winPlayer: winnerPlayer.playerId },
             ),
         );
+
+        this.gameService.removeRoom(game.firstPlayer.userId);
+        this.gameService.removeRoom(game.secondPlayer.userId);
         this.gameService.removeGame(game.id);
-        //TODO remove early created room
+
+        this.eventEmitter.emit(ServerEventModel.ROOM_LIST_UPDATE);
     }
 
     public shotActionHandler(props: ShotActionPropsType): void {

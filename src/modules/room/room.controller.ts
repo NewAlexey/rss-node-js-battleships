@@ -49,6 +49,7 @@ export class RoomController implements ControllerModel {
             ServerEventModel.GAME_CREATE,
             gameRoom.socketIdList,
         );
+        this.eventEmitter.emit(ServerEventModel.ROOM_LIST_UPDATE);
     }
 
     private createRoomHandler(socketId: number) {
@@ -67,6 +68,13 @@ export class RoomController implements ControllerModel {
 
     private updateRoomHandler() {
         this.eventEmitter.subscribe(ServerEventModel.ROOM_LIST_UPDATE, () => {
+            const notificationDataList =
+                this.roomService.getDataNotificatorList();
+
+            notificationDataList.forEach(({ data, userId }) => {
+                this.eventEmitter.emit(userId, data);
+            });
+
             const roomList: RoomModel[] = this.roomService.getRoomList();
             const userList = this.roomService.getAllUsers();
 

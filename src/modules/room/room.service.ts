@@ -2,8 +2,10 @@ import { BaseDataBase } from "../../db/base-db";
 import { RoomDb } from "../../db/room.db";
 import { UserDb } from "../../db/user.db";
 import { UserModel } from "../registration/models/UserModel";
+import { emitDataHandler } from "../../utils/emitDataHandler";
+import { FrontEventTypeModel } from "../../models/FrontEventTypeModel";
 
-import { RoomModel } from "./models/RoomModel";
+import { FrontRoomModel, RoomModel } from "./models/RoomModel";
 
 export class RoomService {
     private readonly roomDb: BaseDataBase<RoomModel> = RoomDb;
@@ -15,8 +17,57 @@ export class RoomService {
         return this.roomDb.add(room, socketId);
     }
 
-    public getUser(userId: number): UserModel | undefined {
-        return this.userDb.get(userId);
+    public getDataNotificatorList(): NotificationDataList[] {
+        const roomList: RoomModel[] = this.getRoomList();
+        const userList = this.getAllUsers();
+
+        const userMap = userList.reduce<Record<number, UserModel>>(
+            (acc, user) => {
+                acc[user.id] = user;
+
+                return acc;
+            },
+            {},
+        );
+
+        return userList.reduce<NotificationDataList[]>((acc, user) => {
+            const availableRoomList = emitDataHandler<FrontRoomModel[]>(
+                FrontEventTypeModel.ROOM_UPDATE,
+                roomList.reduce<FrontRoomModel[]>((acc, room) => {
+                    if (room.socketIdList.length === 2) {
+                        return acc;
+                    }
+
+                    if (room.socketIdList.includes(user.id)) {
+                        return acc;
+                    }
+
+                    const roomUser = userMap[room.socketIdList[0]];
+
+                    if (!roomUser) {
+                        return acc;
+                    }
+
+                    const frontRoom: FrontRoomModel = {
+                        roomId: room.id,
+                        roomUsers: [{ name: roomUser.name, id: roomUser.id }],
+                    };
+
+                    acc.push(frontRoom);
+
+                    return acc;
+                }, []),
+            );
+
+            const data: NotificationDataList = {
+                userId: user.id,
+                data: availableRoomList,
+            };
+
+            acc.push(data);
+
+            return acc;
+        }, []);
     }
 
     public getAllUsers(): UserModel[] {
@@ -39,3 +90,5 @@ export class RoomService {
         return this.roomDb.getAll();
     }
 }
+
+type NotificationDataList = { userId: number; data: string };

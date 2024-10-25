@@ -52,7 +52,7 @@ export class RegistrationController implements ControllerModel {
             );
 
             this.eventEmitter.emit(socketId, data);
-            this.eventEmitter.emit(ServerEventModel.ROOM_LIST_UPDATE, socketId);
+            this.eventEmitter.emit(ServerEventModel.ROOM_LIST_UPDATE);
         } else {
             const isPasswordMatches =
                 this.registrationService.isPasswordMatches(

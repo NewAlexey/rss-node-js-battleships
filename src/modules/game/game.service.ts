@@ -1,5 +1,7 @@
 import { BaseDataBase } from "../../db/base-db";
 import { GameDb } from "../../db/game.db";
+import { RoomModel } from "../room/models/RoomModel";
+import { RoomDb } from "../../db/room.db";
 
 import { GameModel } from "./models/GameModel";
 import { ShipModel } from "./models/ShipModel";
@@ -12,9 +14,14 @@ import {
 
 export class GameService {
     private readonly gameDb: BaseDataBase<GameModel> = GameDb;
+    private readonly roomDb: BaseDataBase<RoomModel> = RoomDb;
 
     public addGame(game: GameModel): GameModel {
         return this.gameDb.add(game, game.id);
+    }
+
+    public removeRoom(socketId: number) {
+        this.roomDb.remove(socketId);
     }
 
     public getGame(gameId: number): GameModel | undefined {
