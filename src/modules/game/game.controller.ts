@@ -49,77 +49,71 @@ export class GameController implements ControllerModel {
         { gameId, y, x, indexPlayer }: PlayerAttackEventDataType,
         socketId: number,
     ) {
-        try {
-            const game = this.gameService.getGame(gameId);
+        const game = this.gameService.getGame(gameId);
 
-            if (!game) {
-                throw new Error("Something wrong with game.");
+        if (!game) {
+            throw new Error("Something wrong with game.");
+        }
+
+        const attackResult: AttackHandlerReturnDataType =
+            this.gameService.attackHandler(game, socketId, indexPlayer, x, y);
+
+        const opponentPlayer = this.gameService.getOpponentPlayerByPlayerId(
+            game,
+            indexPlayer,
+        );
+
+        switch (attackResult.status) {
+            case "invalid": {
+                return;
             }
 
-            const attackResult: AttackHandlerReturnDataType =
-                this.gameService.attackHandler(
+            case "finish": {
+                this.actionService.finishActionHandler({
                     game,
                     socketId,
-                    indexPlayer,
+                    opponentPlayer,
+                });
+
+                break;
+            }
+
+            case "shot": {
+                this.actionService.shotActionHandler({
                     x,
                     y,
-                );
+                    game,
+                    socketId,
+                    opponentPlayer,
+                });
 
-            const opponentPlayer = this.gameService.getOpponentPlayerByPlayerId(
-                game,
-                indexPlayer,
-            );
-
-            switch (attackResult.status) {
-                case "finish": {
-                    this.actionService.finishActionHandler({
-                        game,
-                        socketId,
-                        opponentPlayer,
-                    });
-
-                    break;
-                }
-
-                case "shot": {
-                    this.actionService.shotActionHandler({
-                        x,
-                        y,
-                        game,
-                        socketId,
-                        opponentPlayer,
-                    });
-
-                    break;
-                }
-
-                case "miss": {
-                    this.actionService.missActionHandler({
-                        x,
-                        y,
-                        game,
-                        socketId,
-                        opponentPlayer,
-                    });
-
-                    break;
-                }
-
-                case "killed": {
-                    this.actionService.killedActionHandler({
-                        x,
-                        y,
-                        game,
-                        socketId,
-                        opponentPlayer,
-                        positionList: attackResult.positionList,
-                    });
-
-                    break;
-                }
+                break;
             }
-        } catch (error) {
-            console.error(error);
+
+            case "miss": {
+                this.actionService.missActionHandler({
+                    x,
+                    y,
+                    game,
+                    socketId,
+                    opponentPlayer,
+                });
+
+                break;
+            }
+
+            case "killed": {
+                this.actionService.killedActionHandler({
+                    x,
+                    y,
+                    game,
+                    socketId,
+                    opponentPlayer,
+                    positionList: attackResult.positionList,
+                });
+
+                break;
+            }
         }
     }
 

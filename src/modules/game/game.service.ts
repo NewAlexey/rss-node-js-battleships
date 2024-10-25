@@ -64,12 +64,11 @@ export class GameService {
         socketId: number,
         x: number,
         y: number,
-    ): void {
-        //TODO this errors not catching... why??
+    ): boolean {
         const currentPlayer = this.getCurrentPlayerByUserId(game, socketId);
 
         if (currentPlayer.playerId !== game.movePlayerIdTurn) {
-            throw new Error("Invalid player move turn.");
+            return true;
         }
 
         const isPlayerAlreadyShootThisPosition: boolean | undefined =
@@ -77,9 +76,7 @@ export class GameService {
                 convertCoordinates(x, y),
             );
 
-        if (isPlayerAlreadyShootThisPosition) {
-            throw new Error("Invalid player shoot coordinates.");
-        }
+        return !!isPlayerAlreadyShootThisPosition;
     }
 
     public attackHandler(
@@ -89,18 +86,36 @@ export class GameService {
         x: number,
         y: number,
     ): AttackHandlerReturnDataType {
-        this.validatePlayerAction(game, socketId, x, y);
+        const isInvalid = this.validatePlayerAction(game, socketId, x, y);
+
+        if (isInvalid) {
+            return {
+                status: "invalid",
+            };
+        }
 
         const opponentPlayer: PlayerDataModel =
             this.getOpponentPlayerByPlayerId(game, playerId);
+        const currentPlayer: PlayerDataModel = this.getCurrentPlayerByPlayerId(
+            game,
+            playerId,
+        );
 
-        const { gameField } = opponentPlayer;
+        const playerShootPositionSet: Set<string> | undefined =
+            currentPlayer.gameField?.shootPositionSet;
+        const opponentGameField: GameFieldType | null =
+            opponentPlayer.gameField;
 
-        if (!gameField) {
+        if (!opponentGameField || !playerShootPositionSet) {
             throw new Error("Something wrong with opponent game field.");
         }
 
-        const ship = this.playerShoot(gameField, x, y);
+        const ship: ShipModel | null = this.playerShoot(
+            opponentGameField,
+            playerShootPositionSet,
+            x,
+            y,
+        );
 
         if (!ship) {
             this.changePlayerMoveTurn(game, opponentPlayer.playerId);
@@ -111,9 +126,9 @@ export class GameService {
         }
 
         ship.length -= 1;
-        gameField.livesCount -= 1;
+        opponentGameField.livesCount -= 1;
 
-        if (!gameField.livesCount) {
+        if (!opponentGameField.livesCount) {
             return {
                 status: "finish",
             };
@@ -208,13 +223,14 @@ export class GameService {
     }
 
     private playerShoot(
-        gameField: GameFieldType,
+        opponentGameField: GameFieldType,
+        playerShootSet: Set<string>,
         x: number,
         y: number,
     ): ShipModel | null {
-        this.savePlayerShootPosition(gameField.shootPositionSet, x, y);
+        this.savePlayerShootPosition(playerShootSet, x, y);
 
-        return gameField.field[y][x];
+        return opponentGameField.field[y][x];
     }
 
     private savePlayerShootPosition(
@@ -303,8 +319,13 @@ type FinishDataType = {
     status: "finish";
 };
 
+type InvalidDataType = {
+    status: "invalid";
+};
+
 export type AttackHandlerReturnDataType =
     | MissDataType
     | ShotDataType
     | KillDataType
+    | InvalidDataType
     | FinishDataType;
