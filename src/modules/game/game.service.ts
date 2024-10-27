@@ -5,7 +5,7 @@ import { RoomDb } from "../../db/room.db";
 import { getRandomNumber } from "../../utils/getRandomNumber";
 
 import { GameModel } from "./models/GameModel";
-import { ShipModel } from "./models/ShipModel";
+import { FrontShipModel, ShipModel } from "./models/ShipModel";
 import {
     EmptyGameFieldType,
     FieldType,
@@ -25,6 +25,179 @@ export class GameService {
         this.roomDb.remove(socketId);
     }
 
+    public getCoordinatesAroundKilledShip(
+        field: FieldType | undefined,
+        x: number,
+        y: number,
+        direction: "vertical" | "horizontal",
+        length: number,
+    ): CoordsType[] {
+        if (!field) {
+            throw new Error("Something wrong with opponent field.");
+        }
+
+        let currentX = x;
+        let currentY = y;
+
+        const coordsList: CoordsType[] = [];
+
+        let condition = true;
+        let currentAlgorithmStep = AlgorithmStepEnum.FIRST;
+
+        while (condition) {
+            switch (currentAlgorithmStep) {
+                case AlgorithmStepEnum.FIRST: {
+                    currentY = currentY - 1;
+
+                    if (currentY < 0) {
+                        if (direction === "horizontal") {
+                            currentX = currentX + length;
+                        }
+
+                        if (direction === "vertical") {
+                            currentX += 1;
+                        }
+
+                        currentAlgorithmStep = AlgorithmStepEnum.THIRD;
+
+                        break;
+                    }
+
+                    const position = field[currentY][currentX];
+
+                    if (typeof position === "object") {
+                        coordsList.push({ x: currentX, y: currentY });
+                    }
+
+                    currentAlgorithmStep = AlgorithmStepEnum.SECOND;
+
+                    break;
+                }
+
+                case AlgorithmStepEnum.SECOND: {
+                    currentX = currentX + 1;
+
+                    if (currentX >= field.length) {
+                        if (direction === "vertical") {
+                            currentY = currentY + length + 1;
+                        }
+
+                        if (direction === "horizontal") {
+                            currentY = currentY + 2;
+                        }
+
+                        currentAlgorithmStep = AlgorithmStepEnum.FOURTH;
+
+                        break;
+                    }
+
+                    const position = field[currentY][currentX];
+
+                    if (typeof position === "object") {
+                        coordsList.push({ x: currentX, y: currentY });
+                    }
+
+                    if (direction === "horizontal") {
+                        if (currentX > x + length - 1) {
+                            currentAlgorithmStep = AlgorithmStepEnum.THIRD;
+                        }
+                    } else if (currentX > x) {
+                        currentAlgorithmStep = AlgorithmStepEnum.THIRD;
+                    }
+
+                    break;
+                }
+
+                case AlgorithmStepEnum.THIRD: {
+                    currentY = currentY + 1;
+
+                    if (currentY >= field.length) {
+                        if (direction === "vertical") {
+                            currentX = currentX - 2;
+                        }
+
+                        if (direction === "horizontal") {
+                            currentX = currentX - length - 1;
+                        }
+
+                        currentAlgorithmStep = AlgorithmStepEnum.FIFTH;
+
+                        break;
+                    }
+
+                    const position = field[currentY][currentX];
+
+                    if (typeof position === "object") {
+                        coordsList.push({ x: currentX, y: currentY });
+                    }
+
+                    if (direction === "vertical") {
+                        if (currentY > y + length - 1) {
+                            currentAlgorithmStep = AlgorithmStepEnum.FOURTH;
+                        }
+                    } else if (currentY > y) {
+                        currentAlgorithmStep = AlgorithmStepEnum.FOURTH;
+                    }
+
+                    break;
+                }
+
+                case AlgorithmStepEnum.FOURTH: {
+                    currentX = currentX - 1;
+
+                    if (currentY >= field.length) {
+                        currentX -= 1;
+                        currentAlgorithmStep = AlgorithmStepEnum.FIFTH;
+
+                        break;
+                    }
+
+                    const position = field[currentY][currentX];
+
+                    if (typeof position === "object") {
+                        coordsList.push({ x: currentX, y: currentY });
+                    }
+
+                    if (currentX < x) {
+                        currentAlgorithmStep = AlgorithmStepEnum.FIFTH;
+
+                        break;
+                    }
+
+                    break;
+                }
+
+                case AlgorithmStepEnum.FIFTH: {
+                    currentY = currentY - 1;
+
+                    if (currentY < 0) {
+                        condition = false;
+
+                        break;
+                    }
+
+                    const position = field[currentY][currentX];
+
+                    if (typeof position === "object") {
+                        coordsList.push({ x: currentX, y: currentY });
+                    }
+
+                    if (currentY < y) {
+                        condition = false;
+                    }
+
+                    break;
+                }
+
+                default: {
+                    condition = false;
+                }
+            }
+        }
+
+        return coordsList;
+    }
+
     public getGame(gameId: number): GameModel | undefined {
         return this.gameDb.get(gameId);
     }
@@ -36,7 +209,7 @@ export class GameService {
     public generatePlayerRandomAttackPosition(
         gameId: number,
         indexPlayer: string,
-    ): { x: number; y: number } {
+    ): CoordsType {
         const game = this.getGame(gameId);
 
         if (!game) {
@@ -48,7 +221,7 @@ export class GameService {
             indexPlayer,
         );
 
-        const coordinates = {
+        const coordinates: CoordsType = {
             x: getRandomNumber(0, 9),
             y: getRandomNumber(0, 9),
         };
@@ -188,9 +361,20 @@ export class GameService {
         }
 
         if (!ship.length) {
+            const direction = ship.direction ? "vertical" : "horizontal";
+            const length = ship.initialLength;
+
+            const positionList = this.getCoordinatesAroundKilledShip(
+                opponentGameField.field,
+                ship.position.x,
+                ship.position.y,
+                direction,
+                length,
+            );
+
             return {
+                positionList,
                 status: "killed",
-                positionList: [],
             };
         }
 
@@ -222,7 +406,7 @@ export class GameService {
     public addShipsToUser(
         gameId: number,
         playerId: string,
-        shipList: ShipModel[],
+        shipList: FrontShipModel[],
     ): GameModel | undefined {
         const game = this.gameDb.get(gameId);
 
@@ -300,9 +484,16 @@ export class GameService {
 
     private setPlayerShipList(
         playerData: PlayerDataModel,
-        shipList: ShipModel[],
+        shipList: FrontShipModel[],
     ): PlayerDataModel {
-        return { ...playerData, isPlayerReady: true, shipList };
+        return {
+            ...playerData,
+            isPlayerReady: true,
+            shipList: shipList.map((ship) => ({
+                ...ship,
+                initialLength: ship.length,
+            })),
+        };
     }
 
     private createPlayerGameField(player: PlayerDataModel): PlayerDataModel {
@@ -352,6 +543,11 @@ function generateMatrix(size: number): EmptyGameFieldType {
     return matrix;
 }
 
+type CoordsType = {
+    x: number;
+    y: number;
+};
+
 type MissDataType = {
     status: "miss";
 };
@@ -362,10 +558,7 @@ type ShotDataType = {
 
 type KillDataType = {
     status: "killed";
-    positionList: {
-        x: number;
-        y: number;
-    }[];
+    positionList: CoordsType[];
 };
 
 type FinishDataType = {
@@ -382,3 +575,11 @@ export type AttackHandlerReturnDataType =
     | KillDataType
     | InvalidDataType
     | FinishDataType;
+
+enum AlgorithmStepEnum {
+    FIRST = 1,
+    SECOND = 2,
+    THIRD = 3,
+    FOURTH = 4,
+    FIFTH = 5,
+}

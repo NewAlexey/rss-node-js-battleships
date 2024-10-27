@@ -9,7 +9,7 @@ import { WinnersService } from "../winners/winners.service";
 
 import { AttackHandlerReturnDataType, GameService } from "./game.service";
 import { GameModel } from "./models/GameModel";
-import { ShipModel } from "./models/ShipModel";
+import { FrontShipModel, ShipModel } from "./models/ShipModel";
 import { GameActionService } from "./game-action.service";
 
 export class GameController implements ControllerModel {
@@ -289,7 +289,7 @@ export type CreateGameEmitDataType = {
 
 export type AddShipsEventData = {
     gameId: number;
-    ships: ShipModel[];
+    ships: FrontShipModel[];
     indexPlayer: string;
 };
 

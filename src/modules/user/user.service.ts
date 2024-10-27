@@ -26,4 +26,18 @@ export class UserService {
 
         return !existUser ? false : existUser.password === password;
     }
+
+    public getAllWinners() {
+        const userList = this.getAll();
+
+        return userList.sort((userA, userB) => {
+            if (userA.winsCount < userB.winsCount) {
+                return 1;
+            } else if (userA.winsCount > userB.winsCount) {
+                return -1;
+            }
+
+            return 0;
+        });
+    }
 }

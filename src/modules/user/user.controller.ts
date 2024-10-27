@@ -8,12 +8,12 @@ import { ServerEventModel } from "../../models/ServerEventModel";
 import { UserService } from "./user.service";
 
 export class UserController implements ControllerModel {
-    private readonly registrationService: UserService = new UserService();
+    private readonly userService: UserService = new UserService();
     private readonly eventEmitter: EventEmitter;
 
     private readonly eventHandlerMap: EventHandlerMapType = {
         [FrontEventTypeModel.REGISTRATION]: (
-            data: BaseMessageModel<any>,
+            data: BaseMessageModel<LoginOrCreateDataType>,
             socketId: number,
         ) => this.loginOrCreateUserHandler(data, socketId),
     };
@@ -33,7 +33,7 @@ export class UserController implements ControllerModel {
 
     private updateWinnerHandler(): void {
         this.eventEmitter.subscribe(ServerEventModel.WINNERS_UPDATE, () => {
-            const userList = this.registrationService.getAll();
+            const userList = this.userService.getAllWinners();
 
             const winnersDataType = userList.map<WinnersUpdateEmitDataType>(
                 (user) => ({ wins: user.winsCount, name: user.name }),
@@ -54,12 +54,10 @@ export class UserController implements ControllerModel {
         message: BaseMessageModel<LoginOrCreateDataType>,
         socketId: number,
     ): void {
-        const isUserExist = this.registrationService.isUserExist(
-            message.data.name,
-        );
+        const isUserExist = this.userService.isUserExist(message.data.name);
 
         if (!isUserExist) {
-            const createdUser = this.registrationService.registerUser(
+            const createdUser = this.userService.registerUser(
                 message.data,
                 socketId,
             );
@@ -78,11 +76,10 @@ export class UserController implements ControllerModel {
             this.eventEmitter.emit(ServerEventModel.ROOM_LIST_UPDATE);
             this.eventEmitter.emit(ServerEventModel.WINNERS_UPDATE);
         } else {
-            const isPasswordMatches =
-                this.registrationService.isPasswordMatches(
-                    message.data.name,
-                    message.data.password,
-                );
+            const isPasswordMatches = this.userService.isPasswordMatches(
+                message.data.name,
+                message.data.password,
+            );
 
             if (!isPasswordMatches) {
                 //TODO emit wrong user data!
