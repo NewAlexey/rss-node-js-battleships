@@ -3,6 +3,7 @@ import WebSocket, { Server as ServerType, WebSocketServer } from "ws";
 import { BaseMessageModel } from "./models/BaseMessageModel";
 import { EventEmitter } from "./utils/EventEmitter";
 import { generateId } from "./utils/generateId";
+import { ServerEventModel } from "./models/ServerEventModel";
 
 export class WSServer {
     public readonly server: ServerType;
@@ -17,7 +18,7 @@ export class WSServer {
         this.eventEmitter = eventEmitter;
         this.server = new WebSocketServer({ port: Number(port) });
         this.init(handler);
-        console.log("ws created!");
+        console.log("WebSocket server created!");
     }
 
     private init(handler: HandlerType) {
@@ -35,11 +36,19 @@ export class WSServer {
 
             const socketId: number = generateId();
             const socketCallback = (data: any) => {
-                console.log("WsServer emitted data - ", data);
+                console.log("[Outgoing Message] - ", data);
                 socket.send(data);
             };
 
             this.eventEmitter.subscribe(socketId, socketCallback);
+
+            socket.on("close", () => {
+                this.eventEmitter.emit(
+                    ServerEventModel.USER_DISCONNECT,
+                    socketId,
+                );
+                this.eventEmitter.unsubscribe(socketId, socketCallback);
+            });
 
             socket.on("message", (data) => {
                 try {
@@ -51,7 +60,7 @@ export class WSServer {
                         message.data = JSON.parse(message.data);
                     }
 
-                    console.log("Frontend message - ", message);
+                    console.log("[Incoming Message] - ", message);
 
                     handler(message, socketId);
                 } catch (error) {

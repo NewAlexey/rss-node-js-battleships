@@ -6,6 +6,7 @@ import { emitDataHandler } from "../../utils/emitDataHandler";
 import { ServerEventModel } from "../../models/ServerEventModel";
 
 import { UserService } from "./user.service";
+import { UserModel } from "./models/UserModel";
 
 export class UserController implements ControllerModel {
     private readonly userService: UserService = new UserService();
@@ -29,6 +30,25 @@ export class UserController implements ControllerModel {
 
     private subscribeOnEvent() {
         this.updateWinnerHandler();
+        this.disconnectUserHandler();
+    }
+
+    private disconnectUserHandler() {
+        this.eventEmitter.subscribe(
+            ServerEventModel.USER_DISCONNECT,
+            (socketId: number) => {
+                const user: UserModel | undefined =
+                    this.userService.getUserBySocketId(socketId);
+
+                if (!user) {
+                    return;
+                }
+
+                user.socketId = null;
+
+                this.eventEmitter.emit(ServerEventModel.ROOM_LIST_UPDATE);
+            },
+        );
     }
 
     private updateWinnerHandler(): void {
@@ -40,12 +60,16 @@ export class UserController implements ControllerModel {
             );
 
             userList.forEach((user) => {
+                if (!user.socketId) {
+                    return;
+                }
+
                 const data = emitDataHandler<WinnersUpdateEmitDataType[]>(
                     FrontEventTypeModel.WINNERS_UPDATE,
                     winnersDataType,
                 );
 
-                this.eventEmitter.emit(user.id, data);
+                this.eventEmitter.emit(user.socketId, data);
             });
         });
     }
@@ -54,39 +78,98 @@ export class UserController implements ControllerModel {
         message: BaseMessageModel<LoginOrCreateDataType>,
         socketId: number,
     ): void {
-        const isUserExist = this.userService.isUserExist(message.data.name);
+        const user: UserModel | undefined = this.userService.getUser(
+            message.data.name,
+        );
 
-        if (!isUserExist) {
-            const createdUser = this.userService.registerUser(
-                message.data,
-                socketId,
-            );
+        if (!user) {
+            this.registerUserHandler(message.data, socketId);
 
-            const data = emitDataHandler<LoginEmitDataType>(
-                FrontEventTypeModel.REGISTRATION,
-                {
-                    name: createdUser.name,
-                    index: createdUser.id,
-                    error: false,
-                    errorText: "",
-                },
-            );
-
-            this.eventEmitter.emit(socketId, data);
-            this.eventEmitter.emit(ServerEventModel.ROOM_LIST_UPDATE);
-            this.eventEmitter.emit(ServerEventModel.WINNERS_UPDATE);
-        } else {
-            const isPasswordMatches = this.userService.isPasswordMatches(
-                message.data.name,
-                message.data.password,
-            );
-
-            if (!isPasswordMatches) {
-                //TODO emit wrong user data!
-            } else {
-                //TODO emit wrong user data!
-            }
+            return;
         }
+
+        const isPasswordMatches = this.userService.isPasswordMatches(
+            message.data.name,
+            message.data.password,
+        );
+
+        if (!isPasswordMatches) {
+            this.passwordNotMatchHandler(socketId);
+
+            return;
+        }
+
+        if (user.socketId) {
+            this.userAlreadyLoginHandler(socketId);
+        } else {
+            this.loginUserHandler(user.name, socketId);
+        }
+    }
+
+    private userAlreadyLoginHandler(socketId: number): void {
+        const data = emitDataHandler<LoginEmitDataType>(
+            FrontEventTypeModel.REGISTRATION,
+            {
+                name: "",
+                index: 0,
+                error: true,
+                errorText: "User already authorized.",
+            },
+        );
+
+        this.eventEmitter.emit(socketId, data);
+    }
+
+    private loginUserHandler(userName: string, socketId: number): void {
+        const data = emitDataHandler<LoginEmitDataType>(
+            FrontEventTypeModel.REGISTRATION,
+            {
+                name: userName,
+                index: socketId,
+                error: false,
+                errorText: "",
+            },
+        );
+
+        this.userService.loginUser(userName, socketId);
+        this.eventEmitter.emit(socketId, data);
+        this.eventEmitter.emit(ServerEventModel.ROOM_LIST_UPDATE);
+        this.eventEmitter.emit(ServerEventModel.WINNERS_UPDATE);
+    }
+
+    private passwordNotMatchHandler(socketId: number): void {
+        const data = emitDataHandler<LoginEmitDataType>(
+            FrontEventTypeModel.REGISTRATION,
+            {
+                name: "",
+                index: 0,
+                error: true,
+                errorText: "Check authorized data.",
+            },
+        );
+
+        this.eventEmitter.emit(socketId, data);
+    }
+
+    private registerUserHandler(
+        data: LoginOrCreateDataType,
+        socketId: number,
+    ): void {
+        const createdUser = this.userService.registerUser(data, socketId);
+
+        const emitData = emitDataHandler<LoginEmitDataType>(
+            FrontEventTypeModel.REGISTRATION,
+            {
+                name: createdUser.name,
+                index: socketId,
+                error: false,
+                errorText: "",
+            },
+        );
+
+        this.eventEmitter.emit(socketId, emitData);
+        this.eventEmitter.emit(ServerEventModel.ROOM_LIST_UPDATE);
+        this.eventEmitter.emit(ServerEventModel.WINNERS_UPDATE);
     }
 }
 

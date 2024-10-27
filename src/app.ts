@@ -20,7 +20,7 @@ export class App {
         this.server = new WSServer(
             port,
             this.appEventEmitter,
-            (data, socketId) => this.addMessageHandler(data, socketId),
+            (data, socketId) => this.messageHandler(data, socketId),
         ).server;
     }
 
@@ -35,12 +35,11 @@ export class App {
         });
     }
 
-    private addMessageHandler(data: BaseMessageModel<any>, socketId: number) {
+    private messageHandler(data: BaseMessageModel<any>, socketId: number) {
         const serviceHandler = this.eventTypeMap.get(data.type);
 
         if (!serviceHandler) {
-            console.error("Bad event type");
-            console.log("data~~", data);
+            console.error("[ERROR] - unhandled event type - ", data);
 
             return;
         }

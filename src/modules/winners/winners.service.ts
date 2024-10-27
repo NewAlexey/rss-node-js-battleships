@@ -5,13 +5,15 @@ import { UserDb } from "../../db/user.db";
 export class WinnersService {
     private readonly userDb: BaseDataBase<UserModel> = UserDb;
 
-    public updateWinnersCount(userId: number): void {
-        const user = this.userDb.get(userId);
+    public updateWinnersCount(socketId: number): void {
+        const userList = this.userDb
+            .getAll()
+            .find((user) => user.socketId === socketId);
 
-        if (!user) {
+        if (!userList) {
             return;
         }
 
-        user.winsCount += 1;
+        userList.winsCount += 1;
     }
 }

@@ -175,8 +175,8 @@ export class GameController implements ControllerModel {
                     { currentPlayer: nextMovePlayer.playerId },
                 );
 
-                this.eventEmitter.emit(nextMovePlayer.userId, data);
-                this.eventEmitter.emit(waitMovePlayer.userId, data);
+                this.eventEmitter.emit(nextMovePlayer.socketId, data);
+                this.eventEmitter.emit(waitMovePlayer.socketId, data);
             },
         );
     }
@@ -210,8 +210,8 @@ export class GameController implements ControllerModel {
                     },
                 );
 
-                this.eventEmitter.emit(firstPlayer.userId, firstPlayerData);
-                this.eventEmitter.emit(secondPlayer.userId, secondPlayerData);
+                this.eventEmitter.emit(firstPlayer.socketId, firstPlayerData);
+                this.eventEmitter.emit(secondPlayer.socketId, secondPlayerData);
                 this.eventEmitter.emit(ServerEventModel.PLAYER_TURN, gameId);
             },
         );
@@ -220,13 +220,17 @@ export class GameController implements ControllerModel {
     private createGameHandler(): void {
         this.eventEmitter.subscribe(
             ServerEventModel.GAME_CREATE,
-            (userIdList: number[]) => {
-                const [firstUserId, secondUserId] = userIdList;
+            (usersSocketId: number[]) => {
+                const [firstUserSocketId, secondUserSocketId] = usersSocketId;
+                const firstUser =
+                    this.gameService.getPlayerBySocketId(firstUserSocketId);
+                const secondUser =
+                    this.gameService.getPlayerBySocketId(secondUserSocketId);
 
                 const gameId: number = generateId();
 
-                const firstPlayerId: string = `${gameId}_${firstUserId}`;
-                const secondPlayerId: string = `${gameId}_${secondUserId}`;
+                const firstPlayerId = `${gameId}_${firstUserSocketId}`;
+                const secondPlayerId = `${gameId}_${secondUserSocketId}`;
 
                 const game: GameModel = {
                     id: gameId,
@@ -234,14 +238,16 @@ export class GameController implements ControllerModel {
                     firstPlayer: {
                         isPlayerReady: false,
                         playerId: firstPlayerId,
-                        userId: firstUserId,
+                        name: firstUser.name,
+                        socketId: firstUserSocketId,
                         shipList: [],
                         gameField: null,
                     },
                     secondPlayer: {
                         isPlayerReady: false,
                         playerId: secondPlayerId,
-                        userId: secondUserId,
+                        name: secondUser.name,
+                        socketId: secondUserSocketId,
                         shipList: [],
                         gameField: null,
                     },
@@ -259,14 +265,14 @@ export class GameController implements ControllerModel {
                 };
 
                 this.eventEmitter.emit(
-                    firstUserId,
+                    firstUserSocketId,
                     emitDataHandler<CreateGameEmitDataType>(
                         FrontEventTypeModel.GAME_CREATE,
                         firstPlayerData,
                     ),
                 );
                 this.eventEmitter.emit(
-                    secondUserId,
+                    secondUserSocketId,
                     emitDataHandler<CreateGameEmitDataType>(
                         FrontEventTypeModel.GAME_CREATE,
                         secondPlayerData,

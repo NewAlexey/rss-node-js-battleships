@@ -30,12 +30,10 @@ export class GameActionService {
     public finishActionHandler(props: FinishActionPropsType): void {
         const { game, opponentPlayer, socketId } = props;
 
-        const winnerPlayer = this.gameService.getCurrentPlayerByUserId(
-            game,
-            socketId,
-        );
+        const winnerPlayer: PlayerDataModel =
+            this.gameService.getCurrentPlayerByUserId(game, socketId);
 
-        this.winnerService.updateWinnersCount(winnerPlayer.userId);
+        this.winnerService.updateWinnersCount(winnerPlayer.socketId);
 
         this.eventEmitter.emit(
             socketId,
@@ -45,7 +43,7 @@ export class GameActionService {
             ),
         );
         this.eventEmitter.emit(
-            opponentPlayer.userId,
+            opponentPlayer.socketId,
             emitDataHandler<GameFinishEmitDataType>(
                 FrontEventTypeModel.GAME_FINISH,
                 { winPlayer: winnerPlayer.playerId },
@@ -54,8 +52,8 @@ export class GameActionService {
 
         this.eventEmitter.emit(ServerEventModel.WINNERS_UPDATE);
 
-        this.gameService.removeRoom(game.firstPlayer.userId);
-        this.gameService.removeRoom(game.secondPlayer.userId);
+        this.gameService.removeRoom(game.firstPlayer.socketId);
+        this.gameService.removeRoom(game.secondPlayer.socketId);
         this.gameService.removeGame(game.id);
 
         this.eventEmitter.emit(ServerEventModel.ROOM_LIST_UPDATE);
@@ -79,7 +77,7 @@ export class GameActionService {
         );
 
         this.eventEmitter.emit(socketId, data);
-        this.eventEmitter.emit(opponentPlayer.userId, data);
+        this.eventEmitter.emit(opponentPlayer.socketId, data);
         this.eventEmitter.emit(ServerEventModel.PLAYER_TURN, game.id);
     }
 
@@ -101,7 +99,7 @@ export class GameActionService {
         );
 
         this.eventEmitter.emit(socketId, data);
-        this.eventEmitter.emit(opponentPlayer.userId, data);
+        this.eventEmitter.emit(opponentPlayer.socketId, data);
         this.eventEmitter.emit(ServerEventModel.PLAYER_TURN, game.id);
     }
 
@@ -123,7 +121,7 @@ export class GameActionService {
         );
 
         this.eventEmitter.emit(socketId, data);
-        this.eventEmitter.emit(opponentPlayer.userId, data);
+        this.eventEmitter.emit(opponentPlayer.socketId, data);
 
         positionList.forEach((position) => {
             const killedData = emitDataHandler(
@@ -136,7 +134,7 @@ export class GameActionService {
             );
 
             this.eventEmitter.emit(socketId, killedData);
-            this.eventEmitter.emit(opponentPlayer.userId, killedData);
+            this.eventEmitter.emit(opponentPlayer.socketId, killedData);
         });
 
         this.eventEmitter.emit(ServerEventModel.PLAYER_TURN, game.id);

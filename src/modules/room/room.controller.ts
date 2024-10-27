@@ -80,7 +80,11 @@ export class RoomController implements ControllerModel {
 
             const userMap = userList.reduce<Record<number, UserModel>>(
                 (acc, user) => {
-                    acc[user.id] = user;
+                    if (!user.socketId) {
+                        return acc;
+                    }
+
+                    acc[user.socketId] = user;
 
                     return acc;
                 },
@@ -88,6 +92,12 @@ export class RoomController implements ControllerModel {
             );
 
             userList.forEach((user) => {
+                const userSocketId: number | null = user.socketId;
+
+                if (!userSocketId) {
+                    return;
+                }
+
                 const data = emitDataHandler<FrontRoomModel[]>(
                     FrontEventTypeModel.ROOM_UPDATE,
                     roomList.reduce<FrontRoomModel[]>((acc, room) => {
@@ -95,7 +105,7 @@ export class RoomController implements ControllerModel {
                             return acc;
                         }
 
-                        if (room.socketIdList.includes(user.id)) {
+                        if (room.socketIdList.includes(userSocketId)) {
                             return acc;
                         }
 
@@ -118,7 +128,7 @@ export class RoomController implements ControllerModel {
                     }, []),
                 );
 
-                this.eventEmitter.emit(user.id, data);
+                this.eventEmitter.emit(userSocketId, data);
             });
         });
     }

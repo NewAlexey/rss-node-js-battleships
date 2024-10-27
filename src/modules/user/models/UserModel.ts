@@ -2,6 +2,7 @@ export type UserModel = {
     id: number;
     name: string;
     password: string;
+    socketId: number | null;
     winsCount: number;
 };
 

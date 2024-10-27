@@ -4,4 +4,5 @@ export enum ServerEventModel {
     GAME_START = "game_start",
     PLAYER_TURN = "player_turn",
     WINNERS_UPDATE = "winners_update",
+    USER_DISCONNECT = "user_disconnect",
 }

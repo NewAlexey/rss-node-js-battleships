@@ -3,7 +3,8 @@ import { ShipModel } from "./ShipModel";
 export type PlayerDataModel = {
     isPlayerReady: boolean;
     playerId: string;
-    userId: number;
+    name: string;
+    socketId: number;
     shipList: ShipModel[];
     gameField: GameFieldType | null;
 };

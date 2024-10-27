@@ -6,8 +6,24 @@ import { UserModel } from "./models/UserModel";
 export class UserService {
     private readonly db: BaseDataBase<UserModel> = UserDb;
 
-    public isUserExist(username: string): boolean {
-        return Boolean(this.db.get(username));
+    public getUser(username: string): UserModel | undefined {
+        return this.db.get(username);
+    }
+
+    public loginUser(username: string, socketId: number): void {
+        const user = this.db.get(username);
+
+        if (!user) {
+            throw new Error("Something wrong with user.");
+        }
+
+        user.socketId = socketId;
+    }
+
+    public getUserBySocketId(socketId: number): UserModel | undefined {
+        const userList = this.db.getAll();
+
+        return userList.find((user) => user.socketId === socketId);
     }
 
     public getAll(): UserModel[] {
@@ -18,7 +34,7 @@ export class UserService {
         props: { name: string; password: string },
         socketId: number,
     ): UserModel {
-        return this.db.add({ ...props, winsCount: 0 }, socketId);
+        return this.db.add({ ...props, winsCount: 0, socketId }, props.name);
     }
 
     public isPasswordMatches(name: string, password: string): boolean {

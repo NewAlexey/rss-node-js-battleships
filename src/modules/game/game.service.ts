@@ -3,6 +3,8 @@ import { GameDb } from "../../db/game.db";
 import { RoomModel } from "../room/models/RoomModel";
 import { RoomDb } from "../../db/room.db";
 import { getRandomNumber } from "../../utils/getRandomNumber";
+import { UserModel } from "../user/models/UserModel";
+import { UserDb } from "../../db/user.db";
 
 import { GameModel } from "./models/GameModel";
 import { FrontShipModel, ShipModel } from "./models/ShipModel";
@@ -16,9 +18,22 @@ import {
 export class GameService {
     private readonly gameDb: BaseDataBase<GameModel> = GameDb;
     private readonly roomDb: BaseDataBase<RoomModel> = RoomDb;
+    private readonly userDb: BaseDataBase<UserModel> = UserDb;
 
     public addGame(game: GameModel): GameModel {
         return this.gameDb.add(game, game.id);
+    }
+
+    public getPlayerBySocketId(socketId: number): UserModel {
+        const user = this.userDb
+            .getAll()
+            .find((user) => user.socketId === socketId);
+
+        if (!user) {
+            throw new Error("Something wrong with socketId");
+        }
+
+        return user;
     }
 
     public removeRoom(socketId: number) {
@@ -258,9 +273,9 @@ export class GameService {
 
     public getCurrentPlayerByUserId(
         game: GameModel,
-        userId: number,
+        socketId: number,
     ): PlayerDataModel {
-        return game.firstPlayer.userId === userId
+        return game.firstPlayer.socketId === socketId
             ? game.firstPlayer
             : game.secondPlayer;
     }
