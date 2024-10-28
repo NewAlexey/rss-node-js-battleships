@@ -1,6 +1,5 @@
 import { EventEmitter } from "../../utils/EventEmitter";
 import { FrontEventTypeModel } from "../../models/FrontEventTypeModel";
-import { generateId } from "../../utils/generateId";
 import { emitDataHandler } from "../../utils/emitDataHandler";
 import { ControllerModel, EventHandlerMapType } from "../ControllerModel";
 import { BaseMessageModel } from "../../models/BaseMessageModel";
@@ -9,8 +8,15 @@ import { WinnersService } from "../winners/winners.service";
 
 import { AttackHandlerReturnDataType, GameService } from "./game.service";
 import { GameModel } from "./models/GameModel";
-import { FrontShipModel, ShipModel } from "./models/ShipModel";
 import { GameActionService } from "./game-action.service";
+import {
+    AddShipsEventData,
+    CreateGameEmitDataType,
+    PlayerAttackEventDataType,
+    PlayerRandomAttackEventDataType,
+    PlayerTurnEmitDataType,
+    StartGameEmitDataType,
+} from "./game.types";
 
 export class GameController implements ControllerModel {
     private readonly gameService: GameService = new GameService();
@@ -51,6 +57,7 @@ export class GameController implements ControllerModel {
         this.createGameHandler();
         this.startGameHandler();
         this.playerTurnHandler();
+        this.createSinglePlayGameHandler();
     }
 
     private playerRandomAttackHandler(
@@ -83,58 +90,14 @@ export class GameController implements ControllerModel {
             indexPlayer,
         );
 
-        switch (attackResult.status) {
-            case "invalid": {
-                return;
-            }
-
-            case "finish": {
-                this.actionService.finishActionHandler({
-                    game,
-                    socketId,
-                    opponentPlayer,
-                });
-
-                break;
-            }
-
-            case "shot": {
-                this.actionService.shotActionHandler({
-                    x,
-                    y,
-                    game,
-                    socketId,
-                    opponentPlayer,
-                });
-
-                break;
-            }
-
-            case "miss": {
-                this.actionService.missActionHandler({
-                    x,
-                    y,
-                    game,
-                    socketId,
-                    opponentPlayer,
-                });
-
-                break;
-            }
-
-            case "killed": {
-                this.actionService.killedActionHandler({
-                    x,
-                    y,
-                    game,
-                    socketId,
-                    opponentPlayer,
-                    positionList: attackResult.positionList,
-                });
-
-                break;
-            }
-        }
+        this.actionService.attackHandler({
+            attackResult,
+            opponentPlayer,
+            game,
+            socketId,
+            x,
+            y,
+        });
     }
 
     private addShipsHandler(data: AddShipsEventData): void {
@@ -151,9 +114,11 @@ export class GameController implements ControllerModel {
         const isPlayersReady =
             game.firstPlayer.isPlayerReady && game.secondPlayer.isPlayerReady;
 
-        if (isPlayersReady) {
-            this.eventEmitter.emit(ServerEventModel.GAME_START, game.id);
+        if (!isPlayersReady) {
+            return;
         }
+
+        this.eventEmitter.emit(ServerEventModel.GAME_START, game.id);
     }
 
     private playerTurnHandler(): void {
@@ -217,113 +182,55 @@ export class GameController implements ControllerModel {
         );
     }
 
+    private createSinglePlayGameHandler(): void {
+        this.eventEmitter.subscribe(
+            ServerEventModel.SINGLE_PLAY_GAME_CREATE,
+            (usersSocketId: number[]) => {
+                const { createdGame, playerData } =
+                    this.gameService.createSinglePlayGameHandler(usersSocketId);
+
+                this.eventEmitter.emit(
+                    playerData.socketId,
+                    emitDataHandler<CreateGameEmitDataType>(
+                        FrontEventTypeModel.GAME_CREATE,
+                        {
+                            idGame: createdGame.id,
+                            idPlayer: playerData.playerId,
+                        },
+                    ),
+                );
+            },
+        );
+    }
+
     private createGameHandler(): void {
         this.eventEmitter.subscribe(
             ServerEventModel.GAME_CREATE,
             (usersSocketId: number[]) => {
-                const [firstUserSocketId, secondUserSocketId] = usersSocketId;
-                const firstUser =
-                    this.gameService.getPlayerBySocketId(firstUserSocketId);
-                const secondUser =
-                    this.gameService.getPlayerBySocketId(secondUserSocketId);
-
-                const gameId: number = generateId();
-
-                const firstPlayerId = `${gameId}_${firstUserSocketId}`;
-                const secondPlayerId = `${gameId}_${secondUserSocketId}`;
-
-                const game: GameModel = {
-                    id: gameId,
-                    movePlayerIdTurn: firstPlayerId,
-                    firstPlayer: {
-                        isPlayerReady: false,
-                        playerId: firstPlayerId,
-                        name: firstUser.name,
-                        socketId: firstUserSocketId,
-                        shipList: [],
-                        gameField: null,
-                    },
-                    secondPlayer: {
-                        isPlayerReady: false,
-                        playerId: secondPlayerId,
-                        name: secondUser.name,
-                        socketId: secondUserSocketId,
-                        shipList: [],
-                        gameField: null,
-                    },
-                };
-
-                const createdGame: GameModel = this.gameService.addGame(game);
-
-                const firstPlayerData = {
-                    idGame: createdGame.id,
-                    idPlayer: firstPlayerId,
-                };
-                const secondPlayerData = {
-                    idGame: createdGame.id,
-                    idPlayer: secondPlayerId,
-                };
+                const { createdGame, firstPlayer, secondPlayer } =
+                    this.gameService.createGameHandler(usersSocketId);
 
                 this.eventEmitter.emit(
-                    firstUserSocketId,
+                    firstPlayer.socketId,
                     emitDataHandler<CreateGameEmitDataType>(
                         FrontEventTypeModel.GAME_CREATE,
-                        firstPlayerData,
+                        {
+                            idGame: createdGame.id,
+                            idPlayer: firstPlayer.playerId,
+                        },
                     ),
                 );
                 this.eventEmitter.emit(
-                    secondUserSocketId,
+                    secondPlayer.socketId,
                     emitDataHandler<CreateGameEmitDataType>(
                         FrontEventTypeModel.GAME_CREATE,
-                        secondPlayerData,
+                        {
+                            idGame: createdGame.id,
+                            idPlayer: secondPlayer.playerId,
+                        },
                     ),
                 );
             },
         );
     }
 }
-
-type StartGameEmitDataType = {
-    ships: ShipModel[];
-    currentPlayerIndex: string;
-};
-
-export type CreateGameEmitDataType = {
-    idGame: string | number;
-    idPlayer: string | number;
-};
-
-export type AddShipsEventData = {
-    gameId: number;
-    ships: FrontShipModel[];
-    indexPlayer: string;
-};
-
-export type PlayerTurnEmitDataType = {
-    currentPlayer: string;
-};
-
-export type PlayerAttackEventDataType = {
-    x: number;
-    y: number;
-    gameId: number;
-    indexPlayer: string;
-};
-
-export type PlayerRandomAttackEventDataType = Pick<
-    PlayerAttackEventDataType,
-    "indexPlayer" | "gameId"
->;
-
-export type PlayerAttackEmitDataType = {
-    position: {
-        x: number;
-        y: number;
-    };
-    currentPlayer: string;
-    status: "miss" | "killed" | "shot";
-};
-
-export type GameFinishEmitDataType = {
-    winPlayer: string;
-};

@@ -12,7 +12,7 @@ export class App {
 
     private eventTypeMap: Map<
         string,
-        (data: BaseMessageModel<any>, socketId: number) => void
+        (data: BaseMessageModel<string>, socketId: number) => void
     > = new Map();
 
     constructor(port: number | string, services: ControllerClassModel[]) {
@@ -35,7 +35,7 @@ export class App {
         });
     }
 
-    private messageHandler(data: BaseMessageModel<any>, socketId: number) {
+    private messageHandler(data: BaseMessageModel<string>, socketId: number) {
         const serviceHandler = this.eventTypeMap.get(data.type);
 
         if (!serviceHandler) {

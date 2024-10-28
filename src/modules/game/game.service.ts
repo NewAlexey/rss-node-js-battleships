@@ -5,15 +5,20 @@ import { RoomDb } from "../../db/room.db";
 import { getRandomNumber } from "../../utils/getRandomNumber";
 import { UserModel } from "../user/models/UserModel";
 import { UserDb } from "../../db/user.db";
+import { generateId } from "../../utils/generateId";
 
 import { GameModel } from "./models/GameModel";
 import { FrontShipModel, ShipModel } from "./models/ShipModel";
 import {
-    EmptyGameFieldType,
     FieldType,
     GameFieldType,
     PlayerDataModel,
 } from "./models/PlayerDataModel";
+import { CoordsType } from "./game.types";
+import { generateMatrix } from "./utils/generateMatrix";
+import { convertCoordinates } from "./utils/convertCoordinates";
+import { getBotShipList } from "./utils/getBotShipList";
+import { getCoordinatesAroundKilledShip } from "./utils/getCoordinatesAroundKilledShip";
 
 export class GameService {
     private readonly gameDb: BaseDataBase<GameModel> = GameDb;
@@ -40,179 +45,6 @@ export class GameService {
         this.roomDb.remove(socketId);
     }
 
-    public getCoordinatesAroundKilledShip(
-        field: FieldType | undefined,
-        x: number,
-        y: number,
-        direction: "vertical" | "horizontal",
-        length: number,
-    ): CoordsType[] {
-        if (!field) {
-            throw new Error("Something wrong with opponent field.");
-        }
-
-        let currentX = x;
-        let currentY = y;
-
-        const coordsList: CoordsType[] = [];
-
-        let condition = true;
-        let currentAlgorithmStep = AlgorithmStepEnum.FIRST;
-
-        while (condition) {
-            switch (currentAlgorithmStep) {
-                case AlgorithmStepEnum.FIRST: {
-                    currentY = currentY - 1;
-
-                    if (currentY < 0) {
-                        if (direction === "horizontal") {
-                            currentX = currentX + length;
-                        }
-
-                        if (direction === "vertical") {
-                            currentX += 1;
-                        }
-
-                        currentAlgorithmStep = AlgorithmStepEnum.THIRD;
-
-                        break;
-                    }
-
-                    const position = field[currentY][currentX];
-
-                    if (typeof position === "object") {
-                        coordsList.push({ x: currentX, y: currentY });
-                    }
-
-                    currentAlgorithmStep = AlgorithmStepEnum.SECOND;
-
-                    break;
-                }
-
-                case AlgorithmStepEnum.SECOND: {
-                    currentX = currentX + 1;
-
-                    if (currentX >= field.length) {
-                        if (direction === "vertical") {
-                            currentY = currentY + length + 1;
-                        }
-
-                        if (direction === "horizontal") {
-                            currentY = currentY + 2;
-                        }
-
-                        currentAlgorithmStep = AlgorithmStepEnum.FOURTH;
-
-                        break;
-                    }
-
-                    const position = field[currentY][currentX];
-
-                    if (typeof position === "object") {
-                        coordsList.push({ x: currentX, y: currentY });
-                    }
-
-                    if (direction === "horizontal") {
-                        if (currentX > x + length - 1) {
-                            currentAlgorithmStep = AlgorithmStepEnum.THIRD;
-                        }
-                    } else if (currentX > x) {
-                        currentAlgorithmStep = AlgorithmStepEnum.THIRD;
-                    }
-
-                    break;
-                }
-
-                case AlgorithmStepEnum.THIRD: {
-                    currentY = currentY + 1;
-
-                    if (currentY >= field.length) {
-                        if (direction === "vertical") {
-                            currentX = currentX - 2;
-                        }
-
-                        if (direction === "horizontal") {
-                            currentX = currentX - length - 1;
-                        }
-
-                        currentAlgorithmStep = AlgorithmStepEnum.FIFTH;
-
-                        break;
-                    }
-
-                    const position = field[currentY][currentX];
-
-                    if (typeof position === "object") {
-                        coordsList.push({ x: currentX, y: currentY });
-                    }
-
-                    if (direction === "vertical") {
-                        if (currentY > y + length - 1) {
-                            currentAlgorithmStep = AlgorithmStepEnum.FOURTH;
-                        }
-                    } else if (currentY > y) {
-                        currentAlgorithmStep = AlgorithmStepEnum.FOURTH;
-                    }
-
-                    break;
-                }
-
-                case AlgorithmStepEnum.FOURTH: {
-                    currentX = currentX - 1;
-
-                    if (currentY >= field.length) {
-                        currentX -= 1;
-                        currentAlgorithmStep = AlgorithmStepEnum.FIFTH;
-
-                        break;
-                    }
-
-                    const position = field[currentY][currentX];
-
-                    if (typeof position === "object") {
-                        coordsList.push({ x: currentX, y: currentY });
-                    }
-
-                    if (currentX < x) {
-                        currentAlgorithmStep = AlgorithmStepEnum.FIFTH;
-
-                        break;
-                    }
-
-                    break;
-                }
-
-                case AlgorithmStepEnum.FIFTH: {
-                    currentY = currentY - 1;
-
-                    if (currentY < 0) {
-                        condition = false;
-
-                        break;
-                    }
-
-                    const position = field[currentY][currentX];
-
-                    if (typeof position === "object") {
-                        coordsList.push({ x: currentX, y: currentY });
-                    }
-
-                    if (currentY < y) {
-                        condition = false;
-                    }
-
-                    break;
-                }
-
-                default: {
-                    condition = false;
-                }
-            }
-        }
-
-        return coordsList;
-    }
-
     public getGame(gameId: number): GameModel | undefined {
         return this.gameDb.get(gameId);
     }
@@ -223,7 +55,7 @@ export class GameService {
 
     public generatePlayerRandomAttackPosition(
         gameId: number,
-        indexPlayer: string,
+        playerId: string,
     ): CoordsType {
         const game = this.getGame(gameId);
 
@@ -231,10 +63,7 @@ export class GameService {
             throw new Error("Something wrong with game");
         }
 
-        const currentPlayer = this.getCurrentPlayerByPlayerId(
-            game,
-            indexPlayer,
-        );
+        const currentPlayer = this.getCurrentPlayerByPlayerId(game, playerId);
 
         const coordinates: CoordsType = {
             x: getRandomNumber(0, 9),
@@ -261,16 +90,6 @@ export class GameService {
         return { x: coordinates.x, y: coordinates.y };
     }
 
-    private isPlayerAlreadyShootPosition(
-        x: number,
-        y: number,
-        gameField: GameFieldType | null,
-    ): boolean {
-        return Boolean(
-            gameField?.shootPositionSet.has(convertCoordinates(x, y)),
-        );
-    }
-
     public getCurrentPlayerByUserId(
         game: GameModel,
         socketId: number,
@@ -278,46 +97,6 @@ export class GameService {
         return game.firstPlayer.socketId === socketId
             ? game.firstPlayer
             : game.secondPlayer;
-    }
-
-    public getCurrentPlayerByPlayerId(
-        game: GameModel,
-        playerId: string,
-    ): PlayerDataModel {
-        return game.firstPlayer.playerId === playerId
-            ? game.firstPlayer
-            : game.secondPlayer;
-    }
-
-    public getOpponentPlayerByPlayerId(
-        game: GameModel,
-        playerId: string,
-    ): PlayerDataModel {
-        const opponentPlayer: PlayerDataModel =
-            game.secondPlayer.playerId === playerId
-                ? game.firstPlayer
-                : game.secondPlayer;
-
-        if (!opponentPlayer) {
-            throw new Error("Something wrong with opponent player.");
-        }
-
-        return opponentPlayer;
-    }
-
-    private validatePlayerAction(
-        game: GameModel,
-        socketId: number,
-        x: number,
-        y: number,
-    ): boolean {
-        const currentPlayer = this.getCurrentPlayerByUserId(game, socketId);
-
-        if (currentPlayer.playerId !== game.movePlayerIdTurn) {
-            return true;
-        }
-
-        return this.isPlayerAlreadyShootPosition(x, y, currentPlayer.gameField);
     }
 
     public attackHandler(
@@ -379,13 +158,19 @@ export class GameService {
             const direction = ship.direction ? "vertical" : "horizontal";
             const length = ship.initialLength;
 
-            const positionList = this.getCoordinatesAroundKilledShip(
+            const positionList = getCoordinatesAroundKilledShip(
                 opponentGameField.field,
                 ship.position.x,
                 ship.position.y,
                 direction,
                 length,
             );
+
+            positionList.forEach((position) => {
+                playerShootPositionSet.add(
+                    convertCoordinates(position.x, position.y),
+                );
+            });
 
             return {
                 positionList,
@@ -413,8 +198,8 @@ export class GameService {
             nextMovePlayer: currentPlayer,
             waitMovePlayer:
                 game.movePlayerIdTurn === game.firstPlayer.playerId
-                    ? game.firstPlayer
-                    : game.secondPlayer,
+                    ? game.secondPlayer
+                    : game.firstPlayer,
         };
     }
 
@@ -471,6 +256,150 @@ export class GameService {
             ...game,
             firstPlayer: firstPlayerWithField,
             secondPlayer: secondPlayerWithField,
+        };
+    }
+
+    public getCurrentPlayerByPlayerId(
+        game: GameModel,
+        playerId: string,
+    ): PlayerDataModel {
+        return game.firstPlayer.playerId === playerId
+            ? game.firstPlayer
+            : game.secondPlayer;
+    }
+
+    public getOpponentPlayerByPlayerId(
+        game: GameModel,
+        playerId: string,
+    ): PlayerDataModel {
+        const opponentPlayer: PlayerDataModel =
+            game.secondPlayer.playerId === playerId
+                ? game.firstPlayer
+                : game.secondPlayer;
+
+        if (!opponentPlayer) {
+            throw new Error("Something wrong with opponent player.");
+        }
+
+        return opponentPlayer;
+    }
+
+    private isPlayerAlreadyShootPosition(
+        x: number,
+        y: number,
+        gameField: GameFieldType | null,
+    ): boolean {
+        return Boolean(
+            gameField?.shootPositionSet.has(convertCoordinates(x, y)),
+        );
+    }
+
+    private validatePlayerAction(
+        game: GameModel,
+        socketId: number,
+        x: number,
+        y: number,
+    ): boolean {
+        const currentPlayer = this.getCurrentPlayerByUserId(game, socketId);
+
+        if (currentPlayer.playerId !== game.movePlayerIdTurn) {
+            return true;
+        }
+
+        return this.isPlayerAlreadyShootPosition(x, y, currentPlayer.gameField);
+    }
+
+    public createSinglePlayGameHandler(
+        usersSocketId: number[],
+    ): CreateSinglePlayGameReturnDataType {
+        const [firstUserSocketId, botId] = usersSocketId;
+        const firstUser = this.getPlayerBySocketId(firstUserSocketId);
+
+        const gameId = botId;
+
+        const firstPlayerId = `${gameId}_${firstUserSocketId}`;
+        const botPlayerId = `${gameId}_${botId}`;
+
+        const game: GameModel = {
+            id: gameId,
+            isSinglePlay: true,
+            movePlayerIdTurn: firstPlayerId,
+            firstPlayer: this.createPlayer(
+                firstPlayerId,
+                firstUser.name,
+                firstUserSocketId,
+            ),
+            secondPlayer: this.createBotPlayer(botPlayerId, botId),
+        };
+
+        const createdGame: GameModel = this.addGame(game);
+
+        return { createdGame, playerData: game.firstPlayer };
+    }
+
+    public createGameHandler(
+        usersSocketId: number[],
+    ): CreateGameReturnDataType {
+        const [firstUserSocketId, secondUserSocketId] = usersSocketId;
+        const firstUser = this.getPlayerBySocketId(firstUserSocketId);
+        const secondUser = this.getPlayerBySocketId(secondUserSocketId);
+
+        const gameId: number = generateId();
+
+        const firstPlayerId = `${gameId}_${firstUserSocketId}`;
+        const secondPlayerId = `${gameId}_${secondUserSocketId}`;
+
+        const game: GameModel = {
+            id: gameId,
+            isSinglePlay: false,
+            movePlayerIdTurn: firstPlayerId,
+            firstPlayer: this.createPlayer(
+                firstPlayerId,
+                firstUser.name,
+                firstUserSocketId,
+            ),
+            secondPlayer: this.createPlayer(
+                secondPlayerId,
+                secondUser.name,
+                secondUserSocketId,
+            ),
+        };
+
+        const createdGame: GameModel = this.addGame(game);
+
+        return {
+            createdGame,
+            firstPlayer: createdGame.firstPlayer,
+            secondPlayer: createdGame.secondPlayer,
+        };
+    }
+
+    private createBotPlayer(
+        botPlayerId: string,
+        botId: number,
+    ): PlayerDataModel {
+        return {
+            isPlayerReady: true,
+            playerId: botPlayerId,
+            name: "Bot Player",
+            socketId: botId,
+            shipList: getBotShipList(),
+            gameField: null,
+        };
+    }
+
+    private createPlayer(
+        playerId: string,
+        name: string,
+        socketId: number,
+    ): PlayerDataModel {
+        return {
+            name,
+            playerId,
+            socketId,
+            isPlayerReady: false,
+            shipList: [],
+            gameField: null,
         };
     }
 
@@ -544,25 +473,6 @@ export class GameService {
     }
 }
 
-function convertCoordinates(x: number, y: number): string {
-    return `${x}${y}`;
-}
-
-function generateMatrix(size: number): EmptyGameFieldType {
-    const matrix: EmptyGameFieldType = [];
-
-    for (let i = 0; i < size; i++) {
-        matrix.push(Array(size).fill(null));
-    }
-
-    return matrix;
-}
-
-type CoordsType = {
-    x: number;
-    y: number;
-};
-
 type MissDataType = {
     status: "miss";
 };
@@ -591,10 +501,13 @@ export type AttackHandlerReturnDataType =
     | InvalidDataType
     | FinishDataType;
 
-enum AlgorithmStepEnum {
-    FIRST = 1,
-    SECOND = 2,
-    THIRD = 3,
-    FOURTH = 4,
-    FIFTH = 5,
-}
+type CreateGameReturnDataType = {
+    createdGame: GameModel;
+    firstPlayer: PlayerDataModel;
+    secondPlayer: PlayerDataModel;
+};
+
+type CreateSinglePlayGameReturnDataType = {
+    createdGame: GameModel;
+    playerData: PlayerDataModel;
+};

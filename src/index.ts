@@ -5,6 +5,7 @@ import { ControllerClassModel } from "./modules/ControllerModel";
 import { UserController } from "./modules/user/user.controller";
 import { RoomController } from "./modules/room/room.controller";
 import { GameController } from "./modules/game/game.controller";
+import { BotController } from "./modules/bot/bot.controller";
 
 config();
 
@@ -14,6 +15,7 @@ const controllerList: ControllerClassModel[] = [
     UserController,
     RoomController,
     GameController,
+    BotController,
 ];
 
 new App(port, controllerList);

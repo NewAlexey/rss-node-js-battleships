@@ -35,7 +35,7 @@ export class WSServer {
             console.log("New socket connected!");
 
             const socketId: number = generateId();
-            const socketCallback = (data: any) => {
+            const socketCallback = (data: string) => {
                 console.log("[Outgoing Message] - ", data);
                 socket.send(data);
             };
@@ -64,11 +64,11 @@ export class WSServer {
 
                     handler(message, socketId);
                 } catch (error) {
-                    console.error(error);
+                    console.error("[ERROR] - ", data);
                 }
             });
         });
     }
 }
 
-type HandlerType = (data: BaseMessageModel<any>, socketId: number) => void;
+type HandlerType = (data: BaseMessageModel<string>, socketId: number) => void;

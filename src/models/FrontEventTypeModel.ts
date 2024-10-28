@@ -11,4 +11,5 @@ export enum FrontEventTypeModel {
     PLAYER_ATTACK = "attack",
     PLAYER_RANDOM_ATTACK = "randomAttack",
     WINNERS_UPDATE = "update_winners",
+    SINGLE_PLAY = "single_play",
 }
