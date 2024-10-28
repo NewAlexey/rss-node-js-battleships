@@ -16,7 +16,8 @@ export class BotController implements ControllerModel {
     private readonly botService: BotService;
     private readonly actionService: GameActionService;
 
-    private readonly BOT_ATTACK_DELAY =
+    private readonly BOT_DESTROY_DELAY_MIN = 1000 * 60 * 30;
+    private readonly BOT_ATTACK_DELAY_SEC =
         Number(process.env.BOT_ATTACK_DELAY_MS) || 1500;
 
     private readonly eventHandlerMap: EventHandlerMapType = {
@@ -51,9 +52,8 @@ export class BotController implements ControllerModel {
     }
 
     private unsubscribeHandler() {
-        const callback = (botId: number) => {
-            this.eventEmitter.clearSubscriptionsByName(botId);
-        };
+        const callback = (botId: number) =>
+            this.eventEmitter.removeEvent(botId);
 
         this.eventEmitter.subscribe(
             ServerEventModel.SINGLE_PLAY_GAME_FINISH,
@@ -107,14 +107,22 @@ export class BotController implements ControllerModel {
                         opponentPlayer,
                         socketId: botId,
                     });
-                }, this.BOT_ATTACK_DELAY);
+                }, this.BOT_ATTACK_DELAY_SEC);
             },
         );
+    }
+
+    private registerDestroyBotHandler(botId: number): void {
+        setTimeout(() => {
+            this.eventEmitter.removeEvent(botId);
+        }, this.BOT_DESTROY_DELAY_MIN);
     }
 
     private singlePlayHandler(socketId: number): void {
         const room = this.botService.createRoom(socketId);
         const { gameRoom, botId } = this.botService.addBotToRoom(room.id);
+
+        this.registerDestroyBotHandler(botId);
 
         this.eventEmitter.subscribe(botId, (data: Buffer) =>
             this.botEventHandler(data, botId),

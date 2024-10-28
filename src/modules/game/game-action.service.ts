@@ -106,7 +106,7 @@ export class GameActionService {
             );
             this.eventEmitter.emit(
                 ServerEventModel.SINGLE_PLAY_GAME_FINISH,
-                game.secondPlayer.playerId,
+                game.secondPlayer.socketId,
             );
 
             this.gameService.removeRoom(game.firstPlayer.socketId);

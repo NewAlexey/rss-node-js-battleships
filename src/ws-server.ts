@@ -47,7 +47,7 @@ export class WSServer {
                     ServerEventModel.USER_DISCONNECT,
                     socketId,
                 );
-                this.eventEmitter.unsubscribe(socketId, socketCallback);
+                this.eventEmitter.removeEvent(socketId);
             });
 
             socket.on("message", (data) => {

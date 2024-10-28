@@ -33,6 +33,10 @@ export class EventEmitter {
         this.events.set(eventName, []);
     }
 
+    public removeEvent(eventName: string | number): void {
+        this.events.delete(eventName);
+    }
+
     public unsubscribe(
         eventName: string | number,
         callback: CallableFunction,
