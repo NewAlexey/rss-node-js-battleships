@@ -16,6 +16,9 @@ export class BotController implements ControllerModel {
     private readonly botService: BotService;
     private readonly actionService: GameActionService;
 
+    private readonly BOT_ATTACK_DELAY =
+        Number(process.env.BOT_ATTACK_DELAY_MS) || 1500;
+
     private readonly eventHandlerMap: EventHandlerMapType = {
         [FrontEventTypeModel.SINGLE_PLAY]: (
             data: BaseMessageModel<string>,
@@ -80,26 +83,22 @@ export class BotController implements ControllerModel {
         this.eventEmitter.subscribe(
             ServerEventModel.SINGLE_PLAY_BOT_ATTACK,
             (gameId: number) => {
-                const { coords, playerId, game, botId } =
-                    this.botService.generateBotAttack(gameId);
-
-                const { x, y } = coords;
-
-                const attackResult = this.botService.botAttackHandler(
-                    game,
-                    botId,
-                    playerId,
-                    coords.x,
-                    coords.y,
-                );
-
-                const opponentPlayer: PlayerDataModel =
-                    this.botService.getBotOpponentPlayer(game);
-
-                const botShotDelay =
-                    Number(process.env.BOT_ATTACK_DELAY_MS) || 1500;
-
                 setTimeout(() => {
+                    const { coords, playerId, game, botId } =
+                        this.botService.generateBotAttack(gameId);
+
+                    const { x, y } = coords;
+
+                    const attackResult = this.botService.botAttackHandler(
+                        game,
+                        botId,
+                        playerId,
+                        coords.x,
+                        coords.y,
+                    );
+
+                    const opponentPlayer: PlayerDataModel =
+                        this.botService.getBotOpponentPlayer(game);
                     this.actionService.attackHandler({
                         y,
                         x,
@@ -108,7 +107,7 @@ export class BotController implements ControllerModel {
                         opponentPlayer,
                         socketId: botId,
                     });
-                }, botShotDelay);
+                }, this.BOT_ATTACK_DELAY);
             },
         );
     }
@@ -137,8 +136,6 @@ export class BotController implements ControllerModel {
         }
 
         const handler = this.eventHandlerMap[message.type];
-
-        console.log("[Bot Message] - ", message);
 
         if (!handler) {
             return;
