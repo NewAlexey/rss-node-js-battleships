@@ -1,0 +1,139 @@
+import { ControllerModel, EventHandlerMapType } from "../ControllerModel";
+import { EventEmitter } from "../../utils/EventEmitter";
+import { FrontEventTypeModel } from "../../models/FrontEventTypeModel";
+import { BaseMessageModel } from "../../models/BaseMessageModel";
+import { emitDataHandler } from "../../utils/emitDataHandler";
+import { ServerEventModel } from "../../models/ServerEventModel";
+import { UserModel } from "../user/models/UserModel";
+
+import { RoomService } from "./room.service";
+import { FrontRoomModel, RoomModel } from "./models/RoomModel";
+
+export class RoomController implements ControllerModel {
+    private readonly roomService: RoomService = new RoomService();
+    private readonly eventEmitter: EventEmitter;
+
+    private readonly eventHandlerMap: EventHandlerMapType = {
+        [FrontEventTypeModel.ROOM_CREATE]: (
+            data: BaseMessageModel<any>,
+            socketId: number,
+        ) => this.createRoomHandler(socketId),
+        [FrontEventTypeModel.ROOM_ADD_USER]: (
+            data: BaseMessageModel<AddUserToRoomType>,
+            socketId: number,
+        ) => this.addUserToRoomHandler(data, socketId),
+    };
+
+    constructor(eventEmitter: EventEmitter) {
+        this.eventEmitter = eventEmitter;
+        this.subscribeOnEvent();
+    }
+
+    public getEventHandlerMap(): EventHandlerMapType {
+        return this.eventHandlerMap;
+    }
+
+    private subscribeOnEvent() {
+        this.updateRoomHandler();
+    }
+
+    private addUserToRoomHandler(
+        data: BaseMessageModel<AddUserToRoomType>,
+        socketId: number,
+    ): void {
+        const gameRoom = this.roomService.addUserToRoom(
+            socketId,
+            data.data.indexRoom,
+        );
+        this.eventEmitter.emit(
+            ServerEventModel.GAME_CREATE,
+            gameRoom.socketIdList,
+        );
+        this.eventEmitter.emit(ServerEventModel.ROOM_LIST_UPDATE);
+    }
+
+    private createRoomHandler(socketId: number) {
+        const createdRoom = this.roomService.createRoom(socketId);
+
+        const data = emitDataHandler<AddUserToRoomType>(
+            FrontEventTypeModel.ROOM_CREATE,
+            {
+                indexRoom: createdRoom.id,
+            },
+        );
+
+        this.eventEmitter.emit(socketId, data);
+        this.eventEmitter.emit(ServerEventModel.ROOM_LIST_UPDATE);
+    }
+
+    private updateRoomHandler() {
+        this.eventEmitter.subscribe(ServerEventModel.ROOM_LIST_UPDATE, () => {
+            const notificationDataList =
+                this.roomService.getDataNotificatorList();
+
+            notificationDataList.forEach(({ data, userId }) => {
+                this.eventEmitter.emit(userId, data);
+            });
+
+            const roomList: RoomModel[] = this.roomService.getRoomList();
+            const userList = this.roomService.getAllUsers();
+
+            const userMap = userList.reduce<Record<number, UserModel>>(
+                (acc, user) => {
+                    if (!user.socketId) {
+                        return acc;
+                    }
+
+                    acc[user.socketId] = user;
+
+                    return acc;
+                },
+                {},
+            );
+
+            userList.forEach((user) => {
+                const userSocketId: number | null = user.socketId;
+
+                if (!userSocketId) {
+                    return;
+                }
+
+                const data = emitDataHandler<FrontRoomModel[]>(
+                    FrontEventTypeModel.ROOM_UPDATE,
+                    roomList.reduce<FrontRoomModel[]>((acc, room) => {
+                        if (room.socketIdList.length === 2) {
+                            return acc;
+                        }
+
+                        if (room.socketIdList.includes(userSocketId)) {
+                            return acc;
+                        }
+
+                        const roomUser = userMap[room.socketIdList[0]];
+
+                        if (!roomUser) {
+                            return acc;
+                        }
+
+                        const frontRoom: FrontRoomModel = {
+                            roomId: room.id,
+                            roomUsers: [
+                                { name: roomUser.name, id: roomUser.id },
+                            ],
+                        };
+
+                        acc.push(frontRoom);
+
+                        return acc;
+                    }, []),
+                );
+
+                this.eventEmitter.emit(userSocketId, data);
+            });
+        });
+    }
+}
+
+type AddUserToRoomType = {
+    indexRoom: number;
+};
