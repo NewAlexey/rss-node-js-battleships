@@ -6,6 +6,7 @@ import { UserController } from "./modules/user/user.controller";
 import { RoomController } from "./modules/room/room.controller";
 import { GameController } from "./modules/game/game.controller";
 import { BotController } from "./modules/bot/bot.controller";
+import { httpServer } from "./http_server";
 
 config();
 
@@ -19,3 +20,8 @@ const controllerList: ControllerClassModel[] = [
 ];
 
 new App(port, controllerList);
+
+const HTTP_PORT = 8181;
+
+console.log(`Start static http server on the ${HTTP_PORT} port!`);
+httpServer.listen(HTTP_PORT);

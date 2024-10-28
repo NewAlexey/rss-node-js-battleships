@@ -4,9 +4,10 @@
     "description": "The Rolling Scopes Battleship application.",
     "scripts": {
         "build:back": "tsc --build",
+        "build": "npm run build:back",
+        "start": "node build/index.js",
         "start:front": "node ./index.js",
         "start:dev": "nodemon src/index.ts",
-        "start:back": "npm run build:back && node build/index.js",
         "start:prod": "npm run start:front && npm run start:back",
         "lint": "eslint . --ext ts,tsx",
         "format": "prettier --check .",
